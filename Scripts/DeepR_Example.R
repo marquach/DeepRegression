@@ -22,6 +22,8 @@ debugonce(deepregression)
 # wieder schließen sonst passiert es jedesmal bei der Funktion.
 # https://fort-w2021.github.io/week4.html
 # Da gehts um das debugging
+# debugonce() kann auch innerhalb wieder über Konsole genutzt werden.
+# z.b. debugonce(precalc_gam)
 
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
