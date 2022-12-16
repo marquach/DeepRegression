@@ -3,9 +3,19 @@
 library(deepregression)
 set.seed(42)
 n <- 1000
+
 data = data.frame(matrix(rnorm(4*n), c(n,4)))
 colnames(data) <- c("x1","x2","x3","xa")
 formula <- ~ 1 + deep_model(x1,x2,x3) + s(xa) + x1
+
+deep_model_torch <- function(x)  x %>%
+  nn_linear(in_features = , out_features = 32, bias = F) %>%
+  nn_relu() %>%
+  nn_dropout(rate = 0.2) %>%
+  nn_linear(out_features = 8) %>% nn_relu() %>%
+  nn_linear(out_features = 1)
+)
+
 
 deep_model <- function(x) x %>%
   layer_dense(units = 32, activation = "relu", use_bias = FALSE) %>%
@@ -14,6 +24,7 @@ deep_model <- function(x) x %>%
   layer_dense(units = 1, activation = "linear")
 
 y <- rnorm(n) + data$xa^2 + data$x1
+
 
 debugonce(deepregression)  
 # Hiermit kann man sich schön durch die Funktion klicken. Muss aber jedesmal davor
@@ -24,6 +35,7 @@ debugonce(deepregression)
 # Da gehts um das debugging
 # debugonce() kann auch innerhalb wieder über Konsole genutzt werden.
 # z.b. debugonce(precalc_gam)
+
 
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
