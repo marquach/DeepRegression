@@ -69,6 +69,13 @@ model_gam_koef
 
 
 ### verstehe was passiert 
+debug(deepregression(list_of_formulas = list(loc = formula, scale = ~ 1), data = data, y = y, list_of_deep_models = list(deep_model = deep_model)))
+debug(deepregression)
+browser(deepregression(list_of_formulas = list(loc = formula, scale = ~ 1),
+                       data = data, y = y,
+                       list_of_deep_models = list(deep_model = deep_model)))
+
+
 debug(deepregression(list_of_formulas = list(loc = formula, scale = ~ 1),
                      data = data, y = y,
                      list_of_deep_models = list(deep_model = deep_model)))
