@@ -11,8 +11,8 @@ date: "2023-01-02"
   - wegen deepregression:::process_terms vll doch nicht (noch genauer schauen)
 - Fragen zu deepregression:::process_terms:
   - create_P muss nicht verändert werden
-  - procs beinhaltet prozessoren für alle specials (splines, lasso, ...)
-  - controls  und alles processors werden args hinzugefügt
+  - procs beinhaltet prozessoren für alle specials(=splines, lasso, ...)
+  - controlsund alles processors werden args hinzugefügt
   - Prozessor vom jeweiligen special wird mit args genutzt genutzt
 - manche processor nutzen layer_generator (gam_processor) und andere nicht (multiply_processor)
   - hier als Input engine=torch um die Layer mit Torch zu initialisieren?
@@ -23,5 +23,8 @@ date: "2023-01-02"
   - process_terms weil da processor enthalten sind
   
 - outputs in subnetwork_init wird auf shape(None, 1) bei allen reduziert. Warum?
+  - Da Ergebnis des NN und Ergebnis des Splines ein skalar sind
+  - Coefs von linearen Teilen sind schon skalar
+
 - Netzwerk bei uns über ein nn_module in deepregression()?
 
