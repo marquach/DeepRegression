@@ -14,7 +14,7 @@ deep_model_torch <- function(x)  x %>%
   nn_dropout(rate = 0.2) %>%
   nn_linear(out_features = 8) %>% nn_relu() %>%
   nn_linear(out_features = 1)
-)
+
 
 
 deep_model <- function(x) x %>%
@@ -44,7 +44,6 @@ mod <- deepregression(
 )
 
 if(!is.null(mod)){
-  
   # train for more than 10 epochs to get a better model
   mod %>% fit(epochs = 10, early_stopping = TRUE)
   mod %>% fitted() %>% head()
@@ -52,7 +51,6 @@ if(!is.null(mod)){
   mod %>% get_partial_effect(name = "s(xa)")
   mod %>% coef()
   mod %>% plot()
-  
 }
 
 mod <- deepregression(
