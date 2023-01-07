@@ -1,4 +1,5 @@
 ########### Deep Regression example ########### 
+
 library(deepregression)
 set.seed(42)
 n <- 1000
@@ -7,8 +8,32 @@ data = data.frame(matrix(rnorm(4*n), c(n,4)))
 colnames(data) <- c("x1","x2","x3","xa")
 y <- rnorm(n) + data$xa^2 + data$x1
 
-formula_test <- ~ -1 + s(xa)
+# Dürfen (orthogonalize = F) nutzen
 orthog_options = orthog_control(orthogonalize = F)
+
+## Easy Model ohne NN
+formula <- ~ 1 + s(xa) + x1
+#debugonce(deepregression)  
+mod <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options
+)
+mod
+
+if(!is.null(mod)){
+  mod %>% fit(epochs = 100, early_stopping = TRUE)
+  mod %>% fitted() %>% head()
+  mod %>% get_partial_effect(name = "s(xa)")
+  mod %>% coef()
+  mod %>% plot()
+}
+
+mod
+# lustig, dass shape immer noch none bei Input.
+# Komisch, dass  s_xa__1 (Dense) (None, 1) None anzeigt. 
+# Muss ja eigentlich fix (9, 1) sein. Selbes bei den anderen dense layer
+
+formula_test <- ~ -1 + s(xa)
 
 mod_true_preproc <- deepregression(
   list_of_formulas = list(loc = formula_test, scale = ~ 1),
@@ -42,8 +67,6 @@ if(!is.null(mod_true)){
 }
 
 
-
-
 formula <- ~ 1 + deep_model(x1,x2,x3) + s(xa) + x1
 
 deep_model <- function(x) x %>%
@@ -61,12 +84,15 @@ mod <- deepregression(
 )
 
 
-load('test_data/Input_subnetwork_init.RData')
-str(subnetwork_init_input)
-# nicht ausführbar weil tensor fehlt $ s(xa)+TRUE:<pointer: 0x0>
+
+##### Verständis was innerhalb von deepregression abläuft ####
 # debugonce durchklicken und input von subnetwork_init 
 # als liste außerhalb speichern (<<-)
 
+load('test_data/Input_subnetwork_init.RData')
+str(subnetwork_init_input)
+# nicht ausführbar weil tensor fehlt $ s(xa)+TRUE:<pointer: 0x0>
+# wird weiter unten erstellt
 
 load('test_data/parsed_formulas_contents.RData')
 str(parsed_formulas_contents); length(parsed_formulas_contents)
