@@ -28,3 +28,5 @@ layer_spline_torch <- function(units = 1L, name, #trainable = TRUE,
   
   spline_layer
 }
+
+
