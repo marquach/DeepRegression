@@ -35,10 +35,10 @@ str(parsed_formulas_contents[[1]])
 #
 # Versuch mehrere NN zu "schichten"
 
-gam_model <- gam(y ~ 1 + x1 + s(xa), data = data, family = gaussian)
+gam_model <- gam(formula, data = data, family = gaussian)
 gam_model$fitted.values
 
-formula <- ~ 1 + x1 + s(xa)
+formula <- y ~ 1 + x1 + s(xa)
 source("Scripts/deepregression_functions.R")
 spline_layer <- nn_module(
   classname = "spline_module", 
@@ -102,7 +102,10 @@ test_ensemble
 
 optimizer <- optim_adam(params = test_ensemble$parameters)
 
-for (t in 1:1000) {
+sum((model.matrix(gam_model)[,-c(1,2)] - parsed_formulas_contents$loc[[2]]$data_trafo()))
+# same
+
+for (t in 1:2500) {
   ### -------- Forward pass -------- 
   y_pred <- 
     test_ensemble(
@@ -130,6 +133,10 @@ for (t in 1:1000) {
   optimizer$step()
 } 
 
+loss
+mean((gam_model$fitted.values - gam_model$y)^2)
+# paar mehr Epochen und ist gleich
+
 c(as.array(test_ensemble$parameters$module2.intercept.weight),
   as.array(test_ensemble$parameters$module3.weightx1.weight),
   t(as.array(test_ensemble$parameters$module1.spline.weight)))
@@ -141,5 +148,13 @@ plot(
     data_module_2 = torch_tensor(rep(1, 1000))$view(c(1000, 1)),
     data_module_3 = torch_tensor(data$x1)$view(c(1000, 1)))),
   gam_model$fitted.values)
+
+# Coefs unterschiedlich aber prediction ähnlich ?!
+
+
+# Wichtig
+layer_generator
+gam_processor
+
 
 
