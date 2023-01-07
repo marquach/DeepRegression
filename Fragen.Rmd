@@ -32,5 +32,5 @@ date: "2023-01-02"
   - Da Ergebnis des NN und Ergebnis des Splines ein skalar sind
   - Coefs von linearen Teilen sind schon skalar
 
-- Netzwerk bei uns über ein nn_module in deepregression()?
+- Netzwerk bei uns über nn_module() bzw. nn_sequential() in deepregression()?
 
