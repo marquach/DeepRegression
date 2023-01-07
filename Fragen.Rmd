@@ -6,19 +6,25 @@ date: "2023-01-02"
 
 ## Fragen:
 
-- Bei Precalc_gam muss nicht verändert werden?
+- Bei precalc_gam muss nicht verändert
 - Alles bis zu return_prepoc = T kann verwendet bzw. muss nicht verändert werden
   - wegen deepregression:::process_terms vll doch nicht (noch genauer schauen)
+  - Output sind dann die parsed_formulas_contents (Output ist in test_data abgespeichert)
+  - $layer problematisch!
 - Fragen zu deepregression:::process_terms:
   - create_P muss nicht verändert werden
   - procs beinhaltet prozessoren für alle specials(=splines, lasso, ...)
-  - controlsund alles processors werden args hinzugefügt
+  - control und alle processors werden args hinzugefügt
   - Prozessor vom jeweiligen special wird mit args genutzt genutzt
 - manche processor nutzen layer_generator (gam_processor) und andere nicht (multiply_processor)
   - hier als Input engine=torch um die Layer mit Torch zu initialisieren?
+  - Sollte man anpassen, dass alle layer_generator() nutzen und dann layer_generator(..., engine = Torch)
+  
 - makeInputs erstellt Keras Tensoren mit Shape(None,...)
   - Bei Torch muss Shape immer gleich angegeben werden, oder?
-- Woher kommt layer_class bei GAM's (subnetwork_init)
+  - Hier leeren (torch_empty(Dimensionen)) oder direkt mit Daten (torch_tensor(...))
+  
+- Woher kommt layer_class bei GAM's bzw. allgemein (subnetwork_init)??? (Wichtig!)
   - return(do.call(layer_class, layer_args)(x)) hat nur "x" als input
   - process_terms weil da processor enthalten sind
   
