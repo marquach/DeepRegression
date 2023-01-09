@@ -70,3 +70,12 @@ date: "2023-01-09"
   - spline
   - nur deep_model
 
+
+- Nächste Schritte?
+  - layer_generator direkt ändern?
+  - oder erstmal ..._processor von einfachsten Fällen anpassen und in deepregression testen
+    - int_processor
+    - lin_processor
+    - gam_processor
+    
+  
