@@ -29,4 +29,30 @@ layer_spline_torch <- function(units = 1L, name, #trainable = TRUE,
   spline_layer
 }
 
+load(file = "test_data/parsed_formulas_contents.RData")
+# makeInputs <- function (pp, param_nr) {
+#  lapply(pp, function(ap) {
+#    if (length(ap$input_dim) > 1)   Wenn Tensor
+#      inp <- as.list(as.integer(ap$input_dim))
+
+#    else inp <- list(as.integer(ap$input_dim))
+
+#    return(tf$keras$Input(shape = inp, 
+#                          name = paste0("input_", 
+#                                        strtrim(make_valid_layername(ap$term),
+#                                                options()$cutoff_names), 
+#                                                     "_", param_nr)))
+#  })
+#}
+
+# parsed_formulas_contents ist input
+
+str(parsed_formulas_contents)
+parsed_formulas_contents[[1]][[1]]$input_dim
+
+
+
+
+
+
 
