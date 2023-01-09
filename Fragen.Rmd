@@ -53,7 +53,7 @@ date: "2023-01-09"
     - Unterschied zu model_builder?
     - subnetwork_init baut tensoren (bis auf gampart) und layer
     - summary_layer setzt diese dann zusammen (z.b. layer_add_identity)
-    - return ist liste aus input\[keep_inputs_in_return\] und output
+    - return ist liste aus input[keep_inputs_in_return] und output
 
 
 - Netzwerk bei uns über nn_module() bzw. nn_sequential() in deepregression()
