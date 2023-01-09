@@ -13,7 +13,7 @@ orthog_options = orthog_control(orthogonalize = F)
 
 ## Easiest Model
 formula <- ~ 1
-#debugonce(deepregression)  
+debugonce(deepregression)  
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
   data = data, y = y, orthog_options = orthog_options
