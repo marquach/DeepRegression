@@ -72,6 +72,7 @@ luz_model <- nn_module(
     # name = "spline_layer")
     self$weightx2 <- nn_linear(in_features = 1, out_features = 1, bias = F)
     self$intercept <- nn_parameter(torch_zeros(1)) # Bias
+    # Auch ein weg für den Intercept, aber bei uns 1er als input für intercept
   },
   
   forward = function(x) {
@@ -152,6 +153,9 @@ spline_layer <- nn_module(
     self$spline(x)}
 )
 
+
+# Einzelne Layer die unterschiedliche Inputs erhalten
+# So sollte passiert es m.M.n. auch bei deepregression
 intercept_layer <- nn_module(
   
   classname = "intercept_module",
