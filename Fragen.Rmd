@@ -73,6 +73,9 @@ date: "2023-01-09"
 
 
 - Nächste Schritte?
+  - makeInputs() anpassen
+    - brauchen hier dann alle Dimensionen, da shape(None, ...) bei Torch nicht geht
+    - bei den procs die input_dim zu vektor machen, da kann mit (torch_empty(Dimensionen)) gearbeitet werden
   - layer_generator direkt ändern?
   - oder erstmal ..._processor von einfachsten Fällen anpassen und mit deepregression testen
     - int_processor
