@@ -11,8 +11,25 @@ y <- rnorm(n) + data$xa^2 + data$x1
 # Dürfen (orthogonalize = F) nutzen
 orthog_options = orthog_control(orthogonalize = F)
 
+## Easiest Model
+formula <- ~ 1
+#debugonce(deepregression)  
+mod <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options
+)
+# sollte zwei params haben (loc, scale)
+mod
+# passt
+
+mod %>% fit(epochs = 100, early_stopping = TRUE)
+mod
+mean(y)
+mod %>% coef()
+
+
 ## Easy Model ohne NN
-formula <- ~ 1 + s(xa) + x1
+formula <- ~ 1  + x1
 #debugonce(deepregression)  
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
@@ -20,18 +37,31 @@ mod <- deepregression(
 )
 mod
 
-if(!is.null(mod)){
   mod %>% fit(epochs = 100, early_stopping = TRUE)
-  mod %>% fitted() %>% head()
-  mod %>% get_partial_effect(name = "s(xa)")
   mod %>% coef()
   mod %>% plot()
-}
 
 mod
 # lustig, dass shape immer noch none bei Input.
+
+
+formula <- ~ 1 +s(xa) + x1
+#debugonce(deepregression)  
+mod <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options
+)
+mod
+
+mod %>% fit(epochs = 100, early_stopping = TRUE)
+mod %>% coef()
+mod %>% plot()
+
+mod
 # Komisch, dass  s_xa__1 (Dense) (None, 1) None anzeigt. 
 # Muss ja eigentlich fix (9, 1) sein. Selbes bei den anderen dense layer
+# mod output setzt sich immer aus input und 
+# layer concatenate und Verteilungsparameter zusammen
 
 formula_test <- ~ -1 + s(xa)
 
