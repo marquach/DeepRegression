@@ -31,25 +31,29 @@ date: "2023-01-09"
   - Jedes submodul hat eigenen Datensatz (data_trafo())
     - also Intercept lauter 1er, s(xa) hat xa, deep_model(x1, x2, x3) hat x1, x2, x3 usw.
     - gleiches dann nochmal für anderen Verteilungsparameter
-    - Modul bekommt also nur den einen Input 
+    - Modul bekommt also seinen eigenen Input
       - model_builder dann vll sowie bei NN_VerständnisSkript.R ganz am Ende
       - hat noch nicht mit luz funktioniert
       
 - manche processor nutzen layer_generator (gam_processor) und andere nicht (multiply_processor)
   - hier als Input engine=torch um die Layer mit Torch zu initialisieren?
   - Sollte man anpassen, dass alle layer_generator() nutzen und dann layer_generator(..., engine = Torch)
+  - layer_class nutzt dann bei gam_processor layer_spline_torch oder halt engine = Torch und dann nur die torch layer ziehen
   
 - makeInputs erstellt Keras Tensoren mit Shape(None,...)
   - Bei Torch muss Shape immer gleich angegeben werden, oder?
   - Hier leeren (torch_empty(Dimensionen)) oder direkt mit Daten (torch_tensor(...))
-  
-
   
 - Fragen subnetwork_init:
   - outputs in subnetwork_init wird auf shape(None, 1) bei allen reduziert. Warum?
     - Da Ergebnis des NN pro Beobachtung ein skalar ist
   - summary_layer per default layer_add_identity
     - Torch hat m.M.n. kein layers.add
+  - subnetwork_init noch nicht ganz klar
+    - Unterschied zu model_builder?
+    - subnetwork_init baut tensoren (bis auf gampart) und layer
+    - summary_layer setzt diese dann zusammen (z.b. layer_add_identity)
+    - return ist liste aus input\[keep_inputs_in_return\] und output
 
 
 - Netzwerk bei uns über nn_module() bzw. nn_sequential() in deepregression()
