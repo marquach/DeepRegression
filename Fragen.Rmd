@@ -50,8 +50,9 @@ date: "2023-01-09"
   - summary_layer per default layer_add_identity
     - Torch hat m.M.n. kein layers.add
   - subnetwork_init noch nicht ganz klar
-    - Unterschied zu model_builder?
     - subnetwork_init baut tensoren (bis auf gampart) und layer
+    - enthält tensoren für inputs und outputs
+    - bei sturkturieten Parts nur dense layer bzw. nn_linear
     - summary_layer setzt diese dann zusammen (z.b. layer_add_identity)
     - return ist liste aus input[keep_inputs_in_return] und output
 
@@ -59,10 +60,10 @@ date: "2023-01-09"
 - Netzwerk bei uns über nn_module() bzw. nn_sequential() in deepregression()
 
 - model_builder bei uns?
-  - deepreg. nutzt keras_dr
+  - deepreg. nutzt keras_dr (bzw. keras_model)
+  - luz mit setup()?
   
   
-
 - Einfachste Fälle überlegen für Torch 
   - (orthogonalize = F) immer nutzen
   - Intercept Only
@@ -73,7 +74,7 @@ date: "2023-01-09"
 
 - Nächste Schritte?
   - layer_generator direkt ändern?
-  - oder erstmal ..._processor von einfachsten Fällen anpassen und in deepregression testen
+  - oder erstmal ..._processor von einfachsten Fällen anpassen und mit deepregression testen
     - int_processor
     - lin_processor
     - gam_processor
