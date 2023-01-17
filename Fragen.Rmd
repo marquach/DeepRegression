@@ -49,7 +49,7 @@ date: "2023-01-09"
   - outputs in subnetwork_init wird auf shape(None, 1) bei allen reduziert. Warum?
     - Da Ergebnis des NN pro Beobachtung ein skalar ist
   - summary_layer per default layer_add_identity
-    - Torch hat m.M.n. kein layers.add
+    - Torch hat m.M.n. kein layers.add (layer_add == "+") 
   - subnetwork_init noch nicht ganz klar
     - subnetwork_init baut tensoren (bis auf gampart) und layer
     - enthält tensoren für inputs und outputs
@@ -77,6 +77,7 @@ date: "2023-01-09"
   - makeInputs() anpassen
     - brauchen hier dann alle Dimensionen, da shape(None, ...) bei Torch nicht geht
     - bei den procs die input_dim zu vektor machen, da kann mit (torch_empty(Dimensionen)) gearbeitet werden
+    - dafür process_terms anpassen
   - layer_generator direkt ändern?
   - oder erstmal ..._processor von einfachsten Fällen anpassen und mit deepregression testen
     - int_processor
