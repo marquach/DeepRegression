@@ -34,6 +34,7 @@ date: "2023-01-09"
     - Modul bekommt also seinen eigenen Input
       - model_builder dann vll sowie bei NN_VerständnisSkript.R ganz am Ende
       - hat noch nicht mit luz funktioniert
+    - Hier input_dim für spätere Initialisierung ergänzgen (bei args)
       
 - manche processor nutzen layer_generator (gam_processor) und andere nicht (multiply_processor)
   - hier als Input engine=torch um die Layer mit Torch zu initialisieren?
