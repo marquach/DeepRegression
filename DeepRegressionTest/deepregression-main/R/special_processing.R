@@ -27,14 +27,14 @@ process_terms <- function(
          te = gam_processor,
          ti = gam_processor,
          int = int_processor,
-         lin = lin_processor,
-         lasso = l1_processor,
-         grlasso = l21_processor,
-         ridge = l2_processor,
-         offsetx = offset_processor,
-         rwt = rwt_processor,
-         const = const_broadcasting_processor,
-         mult = multiply_processor
+         lin = lin_processor#,
+         #lasso = l1_processor,
+         #grlasso = l21_processor,
+         #ridge = l2_processor,
+         #offsetx = offset_processor,
+         #rwt = rwt_processor,
+         #const = const_broadcasting_processor,
+         #mult = multiply_processor
     )
   
   dots <- list(...)
