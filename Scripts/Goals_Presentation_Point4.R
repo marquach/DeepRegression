@@ -34,11 +34,11 @@ str(parsed_formulas_contents[[1]])
 
 #
 # Versuch mehrere NN zu "schichten"
-
-gam_model <- gam(formula, data = data, family = gaussian)
+formula <- y ~ 1 + x1 + s(xa)
+gam_model <- mgcv::gam(formula, data = data, family = gaussian)
 gam_model$fitted.values
 
-formula <- y ~ 1 + x1 + s(xa)
+
 source("Scripts/deepregression_functions.R")
 spline_layer <- nn_module(
   classname = "spline_module", 
@@ -144,10 +144,11 @@ coef(gam_model)
 
 plot(
   as.array(test_ensemble(
-    data_module_1 = torch_tensor(mod_true_preproc$loc[[1]]$data_trafo()),
+    data_module_1 = torch_tensor(parsed_formulas_contents$loc[[2]]$data_trafo()),
     data_module_2 = torch_tensor(rep(1, 1000))$view(c(1000, 1)),
     data_module_3 = torch_tensor(data$x1)$view(c(1000, 1)))),
   gam_model$fitted.values)
+
 
 # Coefs unterschiedlich aber prediction ähnlich ?!
 
