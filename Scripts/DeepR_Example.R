@@ -46,7 +46,7 @@ mod
 
 
 formula <- ~ 1 +s(xa) + x1
-#debugonce(deepregression)  
+debugonce(deepregression)  
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
   data = data, y = y, orthog_options = orthog_options
