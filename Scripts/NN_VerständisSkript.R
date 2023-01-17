@@ -269,5 +269,5 @@ plot(
 plot(mod %>% fitted(),
      gam_model$fitted.values)
 
-
-
+library(luz)
+luz::setup
