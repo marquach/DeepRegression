@@ -66,7 +66,7 @@ process_terms <- function(
     list_terms[[which(sapply(list_terms, "[[", "term")=="1")]]$term <- 
       "(Intercept)"
   }
-  
+  # args muss angepasst werden hat. Inputs sind noch nicht alles implementiert
   args <- list(data = data, output_dim = output_dim, param_nr = param_nr)
   result <- list()
   
@@ -122,7 +122,7 @@ process_terms <- function(
 #' than one additive predictor
 #' @param controls list; control arguments which allow
 #' to pass further information
-#' @param layer_class a tf or keras layer function
+#' @param layer_class a tf or keras layer function or torch layer
 #' @param without_layer function to be used as 
 #' layer if \code{controls$with_layer} is FALSE
 #' @param name character; name of layer. 
