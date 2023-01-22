@@ -100,8 +100,10 @@ spline_layer <- nn_module(
   classname = "spline_module", 
   
   initialize = function() {
-    self$spline <- layer_spline(units = 9, #mod_true_preproc$loc[[1]]$input_dim
-                                name = "spline_layer")
+    self$spline <- nn_linear(in_features = 9, out_features = 1, bias = F)
+      
+      #layer_spline(units = 9, #mod_true_preproc$loc[[1]]$input_dim
+                                #name = "spline_layer")
   },
   forward = function(x) {
     self$spline(x)}
