@@ -24,11 +24,12 @@ date: "2023-01-09"
   - sollte aus parent.env(environment()) kommen (nicer trick)
     - parent.env(environment())\$layer_args,
     - parent.env(environment())\$layer_class
-	Drüber steht Käse
+	Drüber steht Käse. layer_generator hat als default dense.layer genutzt
 
     
 - Fragen zu deepregression:::process_terms:
   - create_P muss nicht verändert werden -> DR: Richtig
+    - create_P ist eine diagonal matrix mit Smooth Parametern der Terme
   - procs beinhaltet prozessoren für alle specials(=splines, lasso, ...) -> DR: Richtig
   - control und alle processors werden args hinzugefügt -> DR: Richtig
   - Prozessor vom jeweiligen special wird mit args genutzt genutzt -> DR: Richtig
@@ -38,18 +39,21 @@ date: "2023-01-09"
     - Modul bekommt also seinen eigenen Input -> DR: Richtig
       - model_builder dann vll sowie bei NN_VerständnisSkript.R ganz am Ende -> DR: später reden
       - hat noch nicht mit luz funktioniert -> DR: später reden
+      - Funktioniert jetzt auch mit luz. dataloader musste genutzt werden
       
 - manche processor nutzen layer_generator (gam_processor) und andere nicht (multiply_processor) 
   -> DR: das ist aktuell noch eine Baustelle von deepreg, ja. Viele der "übrigen" processor passen leider nur nicht in das bisherige Konzept
   - hier als Input engine=torch um die Layer mit Torch zu initialisieren? -> DR: Zum Beispiel (entweder eigene torch processors oder alle bisherigen anpassen)
   - Sollte man anpassen, dass alle layer_generator() nutzen und dann layer_generator(..., engine = Torch)
   - layer_class nutzt dann bei gam_processor layer_spline_torch oder halt engine = Torch und dann nur die torch layer ziehen
+  - Erstmal nur ein paar prozessoren hardcoden?
 
 - makeInputs erstellt Keras Tensoren mit Shape(None,...) -> DR: Richtig, None ist die Batch shape
   - Bei Torch muss Shape immer gleich angegeben werden, oder? -> DR: Richtig
   - Hier leeren (torch_empty(Dimensionen)) oder direkt mit Daten (torch_tensor(...))
   -> DR: Evtl. nicht nötig. Keras braucht die Input Tensoren um das keras Model zu definieren. 
   Ein nn.Module in Pytorch braucht das nicht, sondern nur in_features (oder in_channels o.Ä.)
+  - Input wird bei Torch nicht gebraucht. makeInputs wird also nicht benötigt bei Torch Ansatz
   
 - Fragen subnetwork_init:
   - outputs in subnetwork_init wird auf shape(None, 1) bei allen reduziert. Warum? 
