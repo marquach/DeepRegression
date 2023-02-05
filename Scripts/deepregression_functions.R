@@ -1,27 +1,17 @@
-#functions
 
-## Folgende Funktion sollte Punkt 2 von TF zu Torch umgewandelt werden:
-# def layer_spline(P, units, name, trainable = TRUE,
-#                 kernel_initializer = "glorot_uniform"):
-#  
-#  return(tf.keras.layers.Dense(units = units, name = name, use_bias=False,
-#                               kernel_regularizer = squaredPenalty(P, 1),
-#                               trainable = trainable,
-#                               kernel_initializer = kernel_initializer))
-
-# tf:layers.Dense <==> torch:nn_linear
-# Direkt bei nn_linear kein kernel_initializer möglich (nur indirekt: nn_init_)
-
-# kernel_regularizer = squaredPenalty(P, 1) gibt es nicht bei Torch
-# Regularisierung direkt bei Loss Berechnung??
-
-# Per hook implementiert, da layer unterschiedlich penalisiert werden können
-
-layer_spline_torch <- function(units = 1L, name, #trainable = TRUE,
-                               kernel_initializer = "glorot_uniform",
-                         P){
+#' Function to define spline as Torch layer
+#' 
+#' @param units integer; number of output units
+#' @param P matrix; penalty matrix
+#' @param name string; string defining the layer's name
+#' @param trainable logical; whether layer is trainable
+#' @param kernel_initializer initializer; for basis coefficients
+#' @return Torch layer
+#' @export
+layer_spline <- function(P, units, name, trainable = TRUE,
+                               kernel_initializer = "glorot_uniform"){
   
-  spline_layer <- nn_linear(units, out_features = 1, bias = F)
+  spline_layer <- nn_linear(units, out_features = 1, bias = FALSE)
   
   if (kernel_initializer == "glorot_uniform") {
     nn_init_xavier_uniform_(
@@ -29,12 +19,11 @@ layer_spline_torch <- function(units = 1L, name, #trainable = TRUE,
       gain = nn_init_calculate_gain(nonlinearity = "linear"))
   }
   
-  # nicht sicher ob P immer symmetrisch ist, deswegen P+P$t() statt 2*P
-  # glaub aber schon
   spline_layer$parameters$weight$register_hook(function(grad){
     grad + torch_matmul((P+P$t()), spline_layer$weight$t())$t()
   })
   
+  if(!trainable) spline_layer$parameters$weight$requires_grad = FALSE
   
   spline_layer
 }
@@ -54,10 +43,6 @@ torch_model <-  function(submodules_list){
       Reduce(f = "+", x = subnetworks)}
   )}
 
-# Dataloader müsste dann m.M.n. in deepregression erstellt werden,
-# da außerhalb nicht schön wäre bzw. zu sehr von keras abweicht.
-# Input wird ja eh schon in Form von data gegeben, also sollte das passen
-
 get_luz_dataset <- dataset(
   "deepregression_luz_dataset",
   
@@ -69,13 +54,9 @@ get_luz_dataset <- dataset(
   .getitem = function(index) {
     indexes <- lapply(self$df_list, function(x) x[index,])
     target <- self$target[index]$view(1)
-    # note that the dataloaders will automatically stack tensors
-    # creating a new dimension
     list(indexes, target)
   },
   
-  # Braucht man für dataloader. Wenn Shuffle aus wird es nicht genutzt.
-  # Scheint als ob shuffle so nocht nicht funktioniert. (Später anschauen)
   .length = function() {
     length(self$target)
   }
