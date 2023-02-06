@@ -10,32 +10,16 @@ date: "2023-01-09"
 
 - Alles bis zu return_prepoc = T kann verwendet bzw. muss nicht verändert werden
   - scheinbar nicht so ganz vll doch nicht -> DR: Richtig, da verarbeitete Terme bereits auch das entsprechende Layer enthalten
-  - Output sind dann die parsed_formulas_contents (Output ist in test_data abgespeichert) -> DR: was meint das?
   - \$layer problematisch! (wegen layer_args, layer_class, usw.) -> DR: Richtig
     - Sollte aber eigentlich passen wenn layer_generator torch nutzt -> DR: Richtig
     - (Überlegung: Sollte bei layer_class dann bei spline z.b. layer_spline_torch (siehe ..._functions dafür) stehen) 
     -> DR: eine Option: globale Variable in R's options() die angibt, ob TF oder torch, und layer_generator nimmt dann entsprechend die richtigen Funktionen
     -> DR: weitere Option: layer_spline_torch usw verwenden und dann die globale Option ob TF oder torch in process_terms abfragen
     
-- Woher kommt layer_class, layer_args (subnetwork_init) bei \$layer() ??? (Wichtig!) 
--> DR: Das sind Optionen, die jeder einzelner generator (bspw. der gam_processor selbst definieren kann)
-  - return(do.call(layer_class, layer_args)(x)) hat nur "x" als input
-  - nochmal genauer anschauen (Stichwort: "enviroments") -> DR: versteh ich nicht ganz
-  - sollte aus parent.env(environment()) kommen (nicer trick)
-    - parent.env(environment())\$layer_args,
-    - parent.env(environment())\$layer_class
-	Drüber steht Käse. layer_generator hat als default dense.layer genutzt
-
     
 - Fragen zu deepregression:::process_terms:
   - create_P muss nicht verändert werden -> DR: Richtig
     - create_P ist eine diagonal matrix mit Smooth Parametern der Terme
-  - procs beinhaltet prozessoren für alle specials(=splines, lasso, ...) -> DR: Richtig
-  - control und alle processors werden args hinzugefügt -> DR: Richtig
-  - Prozessor vom jeweiligen special wird mit args genutzt genutzt -> DR: Richtig
-  - Jedes submodul hat eigenen Datensatz (data_trafo()) -> DR: Richtig
-    - also Intercept lauter 1er, s(xa) hat xa, deep_model(x1, x2, x3) hat x1, x2, x3 usw.
-    - gleiches dann nochmal für anderen Verteilungsparameter -> DR: Richtig
     - Modul bekommt also seinen eigenen Input -> DR: Richtig
       - model_builder dann vll sowie bei NN_VerständnisSkript.R ganz am Ende -> DR: später reden
       - hat noch nicht mit luz funktioniert -> DR: später reden
