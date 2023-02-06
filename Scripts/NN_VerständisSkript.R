@@ -155,7 +155,7 @@ spline_layer <- nn_module(
   classname = "spline_module", 
   
   initialize = function() {
-    self$spline <- layer_spline_torch(units = 9, #mod_true_preproc$loc[[1]]$input_dim
+    self$spline <- layer_spline(units = 9, #mod_true_preproc$loc[[1]]$input_dim
                                       name = "spline_layer")
     #self$weightx2 <- nn_linear(in_features = 1, out_features = 1, bias = F)
     #self$weightx1 <- nn_linear(in_features = 1, out_features = 1, bias = F)
@@ -200,6 +200,9 @@ x1_layer <- nn_module(
   }
 )
 
+
+# unser model_builder
+
 ensemble_module <- nn_module(
   
   classname = "ensemble_module",
@@ -211,21 +214,60 @@ ensemble_module <- nn_module(
     
   },
   forward = function(data_module_x1, data_module_x2, data_module_x3) {
-    self$module1(data_module_x1) +
-      self$module2(data_module_x2) +
-      self$module3(data_module_x3)
+    x1 <- self$module1(data_module_x1)
+    x2 <- self$module2(data_module_x2) 
+    x3 <- self$module3(data_module_x3)
+    Reduce(f = "+", list(x1,x2,x3))
   }
 )
 
 test_ensemble <- ensemble_module(spline_layer(), intercept_layer(), x1_layer())
-test_ensemble
 optimizer <- optim_adam(params = test_ensemble$parameters)
+
+
+test_submodules <- list(spline_layer(),
+                        intercept_layer(),
+                        x1_layer())
+self <- nn_module_list(test_submodules)
+self$apply(self$initialize)
+test[[3]]$forward
+
+#param_nr adden
+model_builder <-  nn_module(
+     classname = "test_module",
+     initialize = function(submodules_list) {
+       self$linears <- nn_module_list(submodules_list)
+       },
+     forward = function(data_list) {
+       linears <- lapply(1:length(self$linears), function(x){
+         self$linears[[x]](data_list[[x]])
+         })
+       Reduce(f = "+", x = linears)}
+   )
+
+test_builder <- model_builder(list(spline_layer(),
+                   intercept_layer(),
+                   x1_layer()))
+
+input_list <- list(
+  torch_tensor(parsed_formulas_contents$loc[[2]]$data_trafo()),
+  torch_tensor(rep(1, 1000))$view(c(1000, 1)),
+  torch_tensor(data$x1)$view(c(1000, 1)))
+debugonce(test_builder)
+test_builder(input_list)
+
+torch_cat(
+  c(torch_tensor(parsed_formulas_contents$loc[[2]]$data_trafo()),
+    torch_tensor(rep(1, 1000))$view(c(1000, 1)),
+    torch_tensor(data$x1)$view(c(1000, 1))))
+
+
 
 for (t in 1:1000) {
   ### -------- Forward pass -------- 
   y_pred <- 
     test_ensemble(
-      data_module_x1 = torch_tensor(mod_true_preproc$loc[[1]]$data_trafo()),
+      data_module_x1 = torch_tensor(parsed_formulas_contents$loc[[2]]$data_trafo()),
       data_module_x2 = torch_tensor(rep(1, 1000))$view(c(1000, 1)),
       data_module_x3 = torch_tensor(data$x1)$view(c(1000, 1)))
   ### -------- compute loss -------- 
