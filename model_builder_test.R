@@ -131,7 +131,7 @@ x1_layer <- nn_module(
 
 # subnetwork_init sollte bei torch nur die einzelnen Layer als Listeneinträge 
 # ausgeben. Hier wird kein Input mehr ausgegeben, da bei Torch nicht notwendig.
-# Also eine Liste von Layeren pro Verteilungsparameter
+# Also eine Liste von Layern pro Verteilungsparameter
 # Hier nur ein Beispiel für loc gemacht:
 submodules <- list(spline_layer(),
                    intercept_layer(),
@@ -160,20 +160,16 @@ pre_fitted <- neural_net %>%
     loss = nn_mse_loss(),
     optimizer = optim_adam,
   ) %>% 
-  set_opt_hparams(lr = 0.1) 
+  set_opt_hparams(lr = 0.1, weight_decay=0.01) 
 
 fitted <- pre_fitted %>% fit(
-  data = train_dl, epochs = 10)
-# Hier muss ich noch schauen wie ich fit bereits die daten übergebe, da bei 
-# keras ja nur fit ausgeführt wird. Denke mal über default
-fitted %>% predict(train_dl)
-
-gam_model$coefficients
-neural_net()$parameters
-mean((gam_model$fitted.values - y)^2)
-tail(fitted$records$metrics$train,1)
+  data = train_dl, epochs = 200)
 
 plot(gam_model$fitted.values, fitted %>% predict(train_dl),
-      xlab = "GAM", ylab = "Neural Net")
-abline(a = 0, b = 1, lty = 2)
-# Scheint zu funktioneren :)                  
+     xlab = "GAM", ylab = "Neural Net")
+abline(a = 0, b = 1, lty = 2)  
+
+plot(gam_model)
+points(data$xa,
+       model.matrix(gam_model)[,-c(1,2)]%*%t(as.matrix(neural_net()$parameters[[1]])),
+       col="red")
