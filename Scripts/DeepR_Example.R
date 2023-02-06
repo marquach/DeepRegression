@@ -16,17 +16,23 @@ formula <- ~ 1
 debugonce(deepregression)  
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
-  data = data, y = y, orthog_options = orthog_options
+  data = data, y = y, orthog_options = orthog_options#, model_builder = model_builder_torch
 )
 # sollte zwei params haben (loc, scale)
-mod
+mod$init_params$parsed_formulas_contents$scale[[1]]$layer
 # passt
 
 mod %>% fit(epochs = 100, early_stopping = TRUE)
 mod
 mean(y)
-mod %>% coef()
+coef(mod)
+mod$model$get_weights()
 
+gamlss::gamlss(y~1, sigma.formula = ~1, family = "NO")
+
+lm(y~1)
+lm(y~1)
+lm(y~ 0+ rep(exp(1), length(y)))
 
 ## Easy Model ohne NN
 formula <- ~ 1  + x1
@@ -45,11 +51,12 @@ mod
 # lustig, dass shape immer noch none bei Input.
 
 
-formula <- ~ 1 +s(xa) + x1
+formula <- ~ 1 +s(xa)
 debugonce(deepregression)  
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
-  data = data, y = y, orthog_options = orthog_options
+  data = data, y = y, orthog_options = orthog_options,
+  model_builder = model_builder_test, engine = 'torch'
 )
 mod
 
