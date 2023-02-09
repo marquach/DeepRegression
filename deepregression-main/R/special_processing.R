@@ -253,11 +253,6 @@ int_processor <- function(term, data, output_dim, param_nr, controls, engine){
                            output_dim = output_dim, 
                            param_nr = param_nr, 
                            controls = controls, engine = engine, 
-                           layer_args_names = c("name",
-                                                "units",
-                                                "trainable",
-                                                "kernel_initializer",
-                                                "use_bias"),
                            layer_class = layer_class,
                            without_layer = without_layer)
 
