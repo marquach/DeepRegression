@@ -1,38 +1,36 @@
 library(torch)
 torch_manual_seed(42)
 x <- torch_arange(0, 1, step = 0.001)$view(c(1001,1))
-#y <- 2*x + 1 + torch_randn(100, 1) # mean von y
-intercept <- 1
 beta1 <- 2
 
 n <- distr_normal(loc = beta1*x, scale = torch_exp(beta1*x))
 y <- n$sample(1)
 plot(as.numeric(x), as.numeric(y))
 
-GaussianLinear <- nn_module(
+
+# hier brauchen wir lapply for initialize
+# Output ist bei allen 1
+# input ist abhängig davon wie viele Terme in Formula pro Verteilungsparameter
+
+learn_gaussian_distr <- nn_module(
   initialize = function() {
-    # this linear predictor will estimate the mean of the normal distribution
-    self$linear <- nn_linear(1, 1, bias = F)
-    # this parameter will hold the estimate of the variability
+    self$linear <- nn_linear(in_features = 1, out_features = 1, bias = F)
     self$scale <- nn_linear(1, 1, bias = F)
   },
   forward = function(x) {
-    # we estimate the mean
     loc <- self$linear(x)
     scale <-  self$scale(x)
-    # return a normal distribution
-    #distr_normal(loc, self$scale)
+    # hier lapply, da Anzahl der Parameter unterschiedlich
+    # distr_normal, je nach Verteilung
     distr_normal(loc, torch_exp(scale))
-    
   }
 )
 
-model <- GaussianLinear()
-model$parameters
+model <- learn_gaussian_distr()
 
 opt <- optim_adam(model$parameters)
 
-for (i in 1:500) {
+for (i in 1:200) {
   opt$zero_grad()
   d <- model(x)
   loss <- torch_mean(-d$log_prob(y))
@@ -46,4 +44,3 @@ model$parameters
 
 gamlss(formula = as.numeric(y)~ -1+as.numeric(x),
        sigma.formula = ~ -1 + as.numeric(x), family = NO)
-(2.011^2)
