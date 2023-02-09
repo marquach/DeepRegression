@@ -19,7 +19,7 @@ process_terms <- function(
   parsing_options,
   specials_to_oz = c(), 
   automatic_oz_check = TRUE, 
-  identify_intercept = FALSE,
+  identify_intercept = FALSE, engine,
   ...){
   
   defaults <- 
@@ -67,7 +67,8 @@ process_terms <- function(
       "(Intercept)"
   }
   
-  args <- list(data = data, output_dim = output_dim, param_nr = param_nr)
+  args <- list(data = data, output_dim = output_dim, param_nr = param_nr,
+               engine = engine)
   result <- list()
   
   # add intercept terms
@@ -142,17 +143,30 @@ process_terms <- function(
 #' @export
 #' 
 layer_generator <- function(term, output_dim, param_nr, controls, 
-                            layer_class = tf$keras$layers$Dense,
-                            without_layer = tf$identity,
                             name = makelayername(term, param_nr), 
+                            layer_class,
+                            without_layer,
                             further_layer_args = NULL,
                             layer_args_names = NULL,
                             units = as.integer(output_dim),
+                            engine,
                             ...
                             ){
   
   const_broadcasting <- !is.null(controls$const_broadcasting) && (
     controls$const_broadcasting & output_dim>1)
+  
+  # does not work because gam_processor selects layer with layer_class,
+  # but try in processor
+  #if(engine != "torch"){
+  #  layer_class = tf$keras$layers$Dense
+  #  without_layer = tf$identity
+  #}
+  #if(engine == "torch"){
+  #  layer_class = torch_layer_dense
+  #  without_layer = nn_identity
+  #}
+  
   
   layer_args <- controls$weight_options$general
   layer_args <- c(layer_args, list(...))
@@ -186,12 +200,21 @@ layer_generator <- function(term, output_dim, param_nr, controls,
   if(controls$with_layer){
     
     if(!const_broadcasting){
-      layer = function(x){
-        return(
-          do.call(layer_class, layer_args)(x)
-        )
+      if(engine != 'torch'){
+        layer = function(x){
+          return(
+            do.call(layer_class, layer_args)(x)
+          )
+        }
+      } # add function without x as torch doesn't need input
+      if(engine == 'torch'){
+        layer = function(){
+          return(
+            do.call(layer_class, layer_args)
+          )
+        }
       }
-    }else{
+      } else{
       layer = function(x){
         layer_prev <- do.call(layer_class, layer_args)(x)
         return(
@@ -211,17 +234,36 @@ layer_generator <- function(term, output_dim, param_nr, controls,
   
 }
 
+
+
+
 #' @rdname processors
 #' @export
-int_processor <- function(term, data, output_dim, param_nr, controls){
+int_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
   if(term=="(Intercept)") term <- "1"
   data <- as.data.frame(data[[1]])
   
+  if(engine != "torch"){
+    layer_class = tf$keras$layers$Dense
+    without_layer = tf$identity
+  }
+  if(engine == "torch"){
+    layer_class = torch_layer_dense
+    without_layer = nn_identity
+  }
+  
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
                            param_nr = param_nr, 
-                           controls = controls)
+                           controls = controls, engine = engine, 
+                           layer_args_names = c("name",
+                                                "units",
+                                                "trainable",
+                                                "kernel_initializer",
+                                                "use_bias"),
+                           layer_class = layer_class,
+                           without_layer = without_layer)
 
   list(
     data_trafo = function() matrix(rep(1, nrow(data)), ncol=1),
@@ -241,13 +283,24 @@ int_processor <- function(term, data, output_dim, param_nr, controls){
 
 #' @rdname processors
 #' @export
-lin_processor <- function(term, data, output_dim, param_nr, controls){
+lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
+  
+  if(engine != "torch"){
+    layer_class = tf$keras$layers$Dense
+    without_layer = tf$identity
+  }
+  if(engine == "torch"){
+    layer_class = torch_layer_dense
+    without_layer = nn_identity
+  }
   
   
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
                            param_nr = param_nr, 
-                           controls = controls)
+                           controls = controls, engine = engine,
+                           layer_class = layer_class,
+                           without_layer = without_layer)
   
   if(grepl("lin(.*)", term)) term <- paste(extractvar(term, allow_ia = TRUE),
                                            collapse = " + ")
@@ -280,17 +333,18 @@ lin_processor <- function(term, data, output_dim, param_nr, controls){
 
 #' @rdname processors
 #' @export
-gam_processor <- function(term, data, output_dim, param_nr, controls){
+gam_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
   output_dim <- as.integer(output_dim)
   # extract mgcv smooth object
   P <- create_P(get_gamdata(term, param_nr, controls$gamdata, what="sp_and_S"),
                 controls$sp_scale(data))
-  
+  if(engine == "torch") layer_spline <- layer_spline_torch
+  if(engine == "torch") units = dim(P)[1] else units = as.integer(output_dim)
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
-                           param_nr = param_nr, 
-                           controls = controls,
+                           param_nr = param_nr, units = units,
+                           controls = controls, engine = engine,
                            further_layer_args = list(P = P),
                            layer_args_names = c("name", "units", "P", "trainable", 
                                                 "kernel_initializer"),
