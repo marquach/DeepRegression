@@ -110,12 +110,12 @@ layer_spline_torch <- function(P, units, name, trainable = TRUE,
   spline_layer
 }
 
-#' Function to define a torch layer similiar to a tf dense layer
+#' Function to define a torch layer similar to a tf dense layer
 #' 
 #' @param units integer; number of output units
 #' @param name string; string defining the layer's name
 #' @param trainable logical; whether layer is trainable
-#' @param kernel_initializer initializer; for basis coefficients
+#' @param kernel_initializer initializer; for coefficients
 #' @return Torch layer
 #' @export
 torch_layer_dense <- function(units, name, trainable = TRUE,
