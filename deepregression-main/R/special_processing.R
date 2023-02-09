@@ -156,18 +156,6 @@ layer_generator <- function(term, output_dim, param_nr, controls,
   const_broadcasting <- !is.null(controls$const_broadcasting) && (
     controls$const_broadcasting & output_dim>1)
   
-  # does not work because gam_processor selects layer with layer_class,
-  # but try in processor
-  #if(engine != "torch"){
-  #  layer_class = tf$keras$layers$Dense
-  #  without_layer = tf$identity
-  #}
-  #if(engine == "torch"){
-  #  layer_class = torch_layer_dense
-  #  without_layer = nn_identity
-  #}
-  
-  
   layer_args <- controls$weight_options$general
   layer_args <- c(layer_args, list(...))
   
@@ -196,6 +184,14 @@ layer_generator <- function(term, output_dim, param_nr, controls,
     layer_args <- c(layer_args, further_layer_args)
   if(!is.null(layer_args_names)) 
     layer_args <- layer_args[layer_args_names]
+  
+  if(engine == "torch"){
+    torch_not_implemented <- c("activation", "bias_initializer",
+                               "kernel_regularizer", "bias_regularizer",
+                               "activity_regularizer", "kernel_constraint",  
+                               "bias_constraint")
+    layer_args <- layer_args[!(names(layer_args) %in% torch_not_implemented)]
+    }
   
   if(controls$with_layer){
     
