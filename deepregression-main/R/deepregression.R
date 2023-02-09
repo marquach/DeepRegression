@@ -115,26 +115,27 @@ deepregression <- function(
   formula_options = form_control(),
   output_dim = 1L,
   verbose = FALSE,
+  engine = "tf",
   ...
 )
 {
   
-  if(!is.null(tf_seed))
-    try(tensorflow::set_random_seed(tf_seed), silent = TRUE)
+  #if(!is.null(tf_seed))
+  #  try(tensorflow::set_random_seed(tf_seed), silent = TRUE)
   
   # first check if an env is available
-  if(!reticulate::py_available())
-  {
-    message("No Python Environemt available. Use check_and_install() ",
-            "to install recommended environment.")
-    invisible(return(NULL))
-  }
+  #if(!reticulate::py_available())
+  #{
+  #  message("No Python Environemt available. Use check_and_install() ",
+  #          "to install recommended environment.")
+  #  invisible(return(NULL))
+  #}
 
-  if(!py_module_available("tensorflow"))
-  {
-    message("Tensorflow not available. Use install_tensorflow().")
-    invisible(return(NULL))
-  }
+  #if(!py_module_available("tensorflow"))
+  #{
+  #  message("Tensorflow not available. Use install_tensorflow().")
+  #  invisible(return(NULL))
+  #}
   
   # convert data.frame to list
   if(is.data.frame(data)){
@@ -257,7 +258,8 @@ deepregression <- function(
                                                            automatic_oz_check =
                                                              automatic_oz_check,
                                                            identify_intercept =
-                                                             orthog_options$identify_intercept
+                                                             orthog_options$identify_intercept,
+                                                           engine
                                                            ),
                                                         list_of_deep_models,
                                                         additional_processors))
@@ -299,7 +301,7 @@ deepregression <- function(
                             split_fun = orthog_options$split_fun,
                             shared_layers = weight_options[[i]]$shared_layers,
                             param_nr = i,
-                            gaminputs = gaminputs
+                            gaminputs = gaminputs, engine = engine
                             )
   )
   if(verbose) cat(" Done.\n")
