@@ -1,6 +1,7 @@
 ########### Deep Regression example ########### 
 
 library(deepregression)
+library(torch)
 set.seed(42)
 n <- 1000
 
@@ -12,12 +13,40 @@ y <- rnorm(n) + data$xa^2 + data$x1
 orthog_options = orthog_control(orthogonalize = F)
 
 ## Easiest Model
-formula <- ~ 1
-debugonce(deepregression)  
+formula <- ~ 1 + x1 + s(xa)
+
+debugonce(deepregression)
+tf_mod_prepoc <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options, return_prepoc = T,
+  engine = "tf")
+torch_mod_prepoc <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options, return_prepoc = T,
+  engine = "torch")
+#str(mod_prepoc, 1)
+
+debugonce(deepregression)
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
-  data = data, y = y, orthog_options = orthog_options#, model_builder = model_builder_torch
-)
+  data = data, y = y, orthog_options = orthog_options, return_prepoc = F,
+  engine = "torch")
+mod <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options, return_prepoc = F,
+  engine = "tf")
+
+
+if(!is.null(mod)){
+  # train for more than 10 epochs to get a better model
+  mod %>% fit(epochs = 100, early_stopping = TRUE)
+  mod %>% coef()
+  mod %>% plot()
+}
+
+
+
+
 # sollte zwei params haben (loc, scale)
 mod$init_params$parsed_formulas_contents$scale[[1]]$layer
 # passt
