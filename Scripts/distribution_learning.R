@@ -58,15 +58,22 @@ data = data.frame(matrix(rnorm(4*n), c(n,4)))
 colnames(data) <- c("x1","x2","x3","xa")
 y <- rnorm(n) + data$xa^2 + data$x1
 
+deep_model <- function(x) x %>%
+  layer_dense(units = 32, activation = "relu", use_bias = FALSE) %>%
+  layer_dropout(rate = 0.2) %>%
+  layer_dense(units = 8, activation = "relu") %>%
+  layer_dense(units = 1, activation = "linear")
+
 orthog_options = orthog_control(orthogonalize = F)
 
-formula <- ~ 1 + x1 + s(xa)
+formula <- ~ 1 + deep_model(x1,x2,x3) + s(xa) + x1
 
 #debugonce(deepregression)
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
-  data = data, y = y, orthog_options = orthog_options, return_prepoc = F,
-  engine = "tf")
+  data = data, y = y,orthog_options = orthog_options,
+  list_of_deep_models = list(deep_model = deep_model), engine = "tf"
+)
 
 if(!is.null(mod)){
   # train for more than 10 epochs to get a better model
@@ -78,10 +85,22 @@ if(!is.null(mod)){
 
 
 source('Scripts/deepregression_functions.R')
-mu_submodules <- list(torch_layer_dense(units = 1),
-                   layer_spline_torch(units = 9,
-                                      P = torch_tensor(matrix(rep(0, 9*9), ncol = 9))),
-                   torch_layer_dense(units = 1))
+
+deep_model <- nn_sequential(
+  nn_linear(in_features = 3, out_features = 32, bias = F),
+  nn_relu(),
+  nn_dropout(p = 0.2),
+  nn_linear(in_features = 32, out_features = 8),
+  nn_relu(),
+  nn_linear(in_features = 8, out_features = 1)
+)
+
+mu_submodules <- list(deep_model,
+                      torch_layer_dense(units = 1),
+                      layer_spline_torch(units = 9,
+                                      P = torch_tensor(
+                                        matrix(rep(0, 9*9), ncol = 9))),
+                      torch_layer_dense(units = 1))
 sigma_submodules <- list(torch_layer_dense(units = 1))
 
 submodules <- list(mu_submodules, sigma_submodules)
@@ -117,18 +136,20 @@ gaussian_learning <- function(neural_net_list){
 distr_learning <- gaussian_learning(neural_net)
 
 # hi3r überall data_trafo() nutzen
+deep_model_data <- mod$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
 gam_data <- mod$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
-lin_data <- mod$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
-int_data <- mod$init_params$parsed_formulas_contents$loc[[3]]$data_trafo()
+lin_data <- mod$init_params$parsed_formulas_contents$loc[[3]]$data_trafo()
+int_data <- mod$init_params$parsed_formulas_contents$loc[[4]]$data_trafo()
 
-input1 <- torch_tensor(lin_data)
-input2 <- torch_tensor(gam_data)
-input3 <- torch_tensor(int_data)
+input1 <- torch_tensor(as.matrix(data[,1:3]))
+input2 <- torch_tensor(lin_data)
+input3 <- torch_tensor(gam_data)
+input4 <- torch_tensor(int_data)
 
 mu_inputs_list <- list(input1,
                        input2,
-                       input3)
-sigma_inputs_list <- list(input3)
+                       input3,input4)
+sigma_inputs_list <- list(input4)
 test_list <- list(mu_inputs_list, sigma_inputs_list)
 
 
