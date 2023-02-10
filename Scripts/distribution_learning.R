@@ -111,30 +111,6 @@ neural_net[[2]]()$forward
 neural_net[[1]]()$parameters
 neural_net[[2]]()$parameters
 
-gaussian_learning <- function(neural_net_list){
-    nn_module(
-      initialize = function() {
-        self$pred_loc <- neural_net_list[[1]]()
-        # this linear predictor will estimate the mean of the normal distribution
-        #self$linear <- nn_linear(1, 1, bias = F)
-        # this parameter will hold the estimate of the variability
-        self$pred_sigma <- neural_net_list[[2]]()
-        #self$scale <- nn_linear(1, 1, bias = F)
-    },
-      forward = function(dataset_list) {
-        # we estimate the mean
-        preds_loc <- self$pred_loc(dataset_list[[1]])
-        preds_sigma <- self$pred_sigma(dataset_list[[2]])
-        #loc <- self$linear(preds_loc)
-        #scale <-  self$scale(preds_sigma)
-        # return a normal distribution
-        #distr_normal(loc, self$scale)
-        distr_normal(preds_loc, torch_exp(preds_sigma))
-      })
-  }
-
-distr_learning <- gaussian_learning(neural_net)
-
 # hi3r überall data_trafo() nutzen
 deep_model_data <- mod$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
 gam_data <- mod$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
@@ -151,7 +127,6 @@ mu_inputs_list <- list(input1,
                        input3,input4)
 sigma_inputs_list <- list(input4)
 test_list <- list(mu_inputs_list, sigma_inputs_list)
-
 
 #model <- distr_learning()
 #opt <- optim_adam(model$parameters)
@@ -197,6 +172,7 @@ luz_dataset$.getitem(1)
 
 train_dl <- dataloader(luz_dataset, batch_size = 32, shuffle = F)
 
+# entweder extern oder intern
 distr_loss <- function(){
   nn_module(
     loss = function(input, target){
@@ -232,11 +208,6 @@ gaussian_learning <- function(neural_net_list){
 }
 distr_learning <- gaussian_learning(neural_net)
 
-# loss form deepregression
-#negloglik <- function(y, dist)
-#  - weights * (dist %>% ind_fun() %>% tfd_log_prob(y))
-
-
 pre_fitted <- distr_learning %>% 
   setup(
     optimizer = optim_adam
@@ -244,9 +215,6 @@ pre_fitted <- distr_learning %>%
   set_opt_hparams(lr = 0.1) 
 fitted <- pre_fitted %>% fit(
   data = train_dl, epochs = 10)
-
-neural_net[[1]]()$parameters
-mod %>% coef()
 
 plot(mod %>% fitted(),
      as.array(neural_net[[1]]()$forward(mu_inputs_list)))
