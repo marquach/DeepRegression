@@ -115,7 +115,7 @@ deep_model <- function() nn_sequential(
 # Soll subnetwork_init nachstellen
 # Gebe liste von layern pro Parameter aus
 # brauche keine Inputs, also nur Layer initialisieren
-mu_submodules <- list(deep_model,
+mu_submodules <- list(deep_model(),
                       torch_layer_dense(units = 1),
                       layer_spline_torch(units = 9,
                                       P = torch_tensor(
@@ -196,28 +196,38 @@ distr_loss <- function(){
 loss_test <- distr_loss()
 loss_test()$loss
 
-gaussian_learning <- function(neural_net_list){
+distribution_learning <- function(neural_net_list, family){
   nn_module(
     initialize = function() {
-      self$pred_loc <- neural_net_list[[1]]()
+    
+      self$distr_parameters <- nn_module_list(
+        lapply(neural_net_list, function(x) x()))
+
       # this linear predictor will estimate the mean of the normal distribution
       #self$linear <- nn_linear(1, 1, bias = F)
       # this parameter will hold the estimate of the variability
-      self$pred_sigma <- neural_net_list[[2]]()
       #self$scale <- nn_linear(1, 1, bias = F)
     },
+    
     forward = function(dataset_list) {
       # we estimate the mean
-      preds_loc <- self$pred_loc(dataset_list[[1]])
-      preds_sigma <- self$pred_sigma(dataset_list[[2]])
+      distribution_parameters <- lapply(
+        1:length(self$distr_parameters), function(x){
+        self$distr_parameters[[x]](dataset_list[[x]])
+        })
+      
       # check which distributions are already implemented
-      distr_normal(preds_loc, torch_exp(preds_sigma))
+      #distr_normal(distribution_parameters[[1]], distribution_parameters[[2]])
+      do.call(family, distribution_parameters)
+      #distr_normal(preds_loc, torch_exp(preds_sigma))
     },
+    
   loss = function(input, target){
     torch_mean(-input$log_prob(target))
   })
 }
-distr_learning <- gaussian_learning(neural_net)
+distr_learning <- distribution_learning(neural_net, family = distr_normal)
+distr_learning()
 
 pre_fitted <- distr_learning %>% 
   setup(
@@ -229,3 +239,4 @@ fitted <- pre_fitted %>% fit(
 
 plot(mod %>% fitted(),
      as.array(neural_net[[1]]()$forward(mu_inputs_list)))
+
