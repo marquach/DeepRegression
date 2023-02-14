@@ -99,6 +99,18 @@ deep_model <- nn_sequential(
   nn_linear(in_features = 8, out_features = 1)
 )
 
+# oder so 
+
+deep_model <- function() nn_sequential(
+  nn_linear(in_features = 3, out_features = 32, bias = F),
+  nn_relu(),
+  nn_dropout(p = 0.2),
+  nn_linear(in_features = 32, out_features = 8),
+  nn_relu(),
+  nn_linear(in_features = 8, out_features = 1)
+)
+
+
 
 # Soll subnetwork_init nachstellen
 # Gebe liste von layern pro Parameter aus
