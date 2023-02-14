@@ -49,8 +49,12 @@ gamlss::gamlss(formula = as.numeric(y)~ -1+as.numeric(x),
 model$parameters
 # true ist 2 also passt es
 
+################################################################################
+################################################################################
+###################### Deepregression example with torch ######################$
+################################################################################
+################################################################################
 
-# Deepregression example with torch
 set.seed(42)
 n <- 1000
 
@@ -85,7 +89,7 @@ if(!is.null(mod)){
 
 
 source('Scripts/deepregression_functions.R')
-
+# So muss deep_model bei torch ansatz angegeben werden, da kein Input vorhanden ist
 deep_model <- nn_sequential(
   nn_linear(in_features = 3, out_features = 32, bias = F),
   nn_relu(),
@@ -95,6 +99,10 @@ deep_model <- nn_sequential(
   nn_linear(in_features = 8, out_features = 1)
 )
 
+
+# Soll subnetwork_init nachstellen
+# Gebe liste von layern pro Parameter aus
+# brauche keine Inputs, also nur Layer initialisieren
 mu_submodules <- list(deep_model,
                       torch_layer_dense(units = 1),
                       layer_spline_torch(units = 9,
@@ -117,6 +125,7 @@ gam_data <- mod$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
 lin_data <- mod$init_params$parsed_formulas_contents$loc[[3]]$data_trafo()
 int_data <- mod$init_params$parsed_formulas_contents$loc[[4]]$data_trafo()
 
+
 input1 <- torch_tensor(as.matrix(data[,1:3]))
 input2 <- torch_tensor(lin_data)
 input3 <- torch_tensor(gam_data)
@@ -128,21 +137,11 @@ mu_inputs_list <- list(input1,
 sigma_inputs_list <- list(input4)
 test_list <- list(mu_inputs_list, sigma_inputs_list)
 
-#model <- distr_learning()
-#opt <- optim_adam(model$parameters)
 
-#for (i in 1:100) {
-#  opt$zero_grad()
-#  d <- model(test_list)
-#  lapply(model$parameters, function(x) x$grad)
-#  loss <- torch_mean(-d$log_prob(torch_tensor(y)))
-#  loss$backward()
-#  lapply(model$parameters, function(x) x$grad)
-#  opt$step()
-#  if (i %% 10 == 0)
-#    cat("iter: ", i, " loss: ", loss$item(), "\n")
-#}
 
+# Erstelle Datensatz für luz setup 
+# Bilde pro Verteilungsparameter eine Liste in der Daten enthalten sind, da 
+# DS pro Parameter unterschiedlich sein können
 get_luz_dataset <- dataset(
   "deepregression_luz_dataset",
   
@@ -172,7 +171,10 @@ luz_dataset$.getitem(1)
 
 train_dl <- dataloader(luz_dataset, batch_size = 32, shuffle = F)
 
-# entweder extern oder intern
+# entweder loss extern oder intern angeben
+# scheinbar eher innerhalb angeben
+# muss sonst mehrmals aktiviert werden (Siehe unten)
+# 
 distr_loss <- function(){
   nn_module(
     loss = function(input, target){
@@ -196,10 +198,7 @@ gaussian_learning <- function(neural_net_list){
       # we estimate the mean
       preds_loc <- self$pred_loc(dataset_list[[1]])
       preds_sigma <- self$pred_sigma(dataset_list[[2]])
-      #loc <- self$linear(preds_loc)
-      #scale <-  self$scale(preds_sigma)
-      # return a normal distribution
-      #distr_normal(loc, self$scale)
+      # check which distributions are already implemented
       distr_normal(preds_loc, torch_exp(preds_sigma))
     },
   loss = function(input, target){
