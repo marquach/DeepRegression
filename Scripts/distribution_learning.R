@@ -218,6 +218,10 @@ distribution_learning <- function(neural_net_list, family){
       
       # check which distributions are already implemented
       #distr_normal(distribution_parameters[[1]], distribution_parameters[[2]])
+      # ACHTUNG: Hier fehlt noch torch_exp bei sigma
+      # Je nach Verteilung muss exp gemacht werden
+      # Bei expo z.b. Gamma
+      distribution_parameters[[2]] <- torch_exp(distribution_parameters[[2]])
       do.call(family, distribution_parameters)
       #distr_normal(preds_loc, torch_exp(preds_sigma))
     },
