@@ -89,3 +89,40 @@ get_luz_dataset <- dataset(
   
 )
 
+
+# Funtkion für Subnetwork Init in torch
+# Schreibe einfach selber eine mit endung torch und lade diese dann am Anfang,
+# da subnetwork_builder eine Parameter der Funktion ist
+
+
+subnetwork_init_torch <- function(pp, deep_top = NULL, 
+                            orthog_fun = orthog_tf, 
+                            split_fun = split_model,
+                            shared_layers = NULL,
+                            param_nr = 1,
+                            selectfun_in = function(pp) pp[[param_nr]],
+                            selectfun_lay = function(pp) pp[[param_nr]],
+                            gaminputs,
+                            summary_layer = layer_add_identity)
+{
+  
+  # instead of passing the respective pp,
+  # subsetting is done within subnetwork_init
+  # to allow other subnetwork_builder to 
+  # potentially access all pp entries
+  pp_in <- selectfun_in(pp)
+  pp_lay <- selectfun_lay(pp)
+  
+ 
+  layer_matching <- 1:length(pp_in)
+  names(layer_matching) <- layer_matching
+  
+  
+  if(all(sapply(pp_in, function(x) is.null(x$right_from_oz)))){ 
+    # if there is no term to orthogonalize
+    
+      outputs <- lapply(1:length(pp_in), function(i) pp_lay[[layer_matching[i]]]$layer())
+      return(outputs) 
+  
+  }
+}
