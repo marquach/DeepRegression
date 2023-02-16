@@ -153,7 +153,9 @@ test_list <- list(mu_inputs_list, sigma_inputs_list)
 
 # Erstelle Datensatz für luz setup 
 # Bilde pro Verteilungsparameter eine Liste in der Daten enthalten sind, da 
-# DS pro Parameter unterschiedlich sein können
+# DS pro Parameter unterschiedlich sein können und
+# erstelle Liste mit Listen als Element.
+
 get_luz_dataset <- dataset(
   "deepregression_luz_dataset",
   
