@@ -157,8 +157,8 @@ test_list <- list(mu_inputs_list, sigma_inputs_list)
 get_luz_dataset <- dataset(
   "deepregression_luz_dataset",
   
-  initialize = function(mu_df_list, sigma_df_list, target) {
-    self$df_list <- list(mu_df_list, sigma_df_list)
+  initialize = function(df_list, target) {
+    self$df_list <- df_list
     self$target <- target
   },
   
@@ -176,8 +176,7 @@ get_luz_dataset <- dataset(
   
 )
 
-luz_dataset <- get_luz_dataset(mu_df_list = mu_inputs_list,
-                               sigma_df_list = sigma_inputs_list,
+luz_dataset <- get_luz_dataset(df_list = test_list,
                                target  = torch_tensor(y))
 luz_dataset$.getitem(1)
 
