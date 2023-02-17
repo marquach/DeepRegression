@@ -1,6 +1,7 @@
 ########### Deep Regression example ########### 
 
 library(deepregression)
+devtools::load_all("deepregression-main/")
 library(torch)
 set.seed(42)
 n <- 1000
@@ -28,14 +29,16 @@ torch_mod_prepoc <- deepregression(
 str(torch_mod_prepoc, 1)
 
 debugonce(deepregression)
-mod <- deepregression(
+mod_tf <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
   data = data, y = y, orthog_options = orthog_options, return_prepoc = F,
   engine = "tf")
 
-mod <- deepregression(
+debugonce(deepregression)
+mod_torch <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
-  data = data, y = y, orthog_options = orthog_options, return_prepoc = F,
+  data = data, y = y, orthog_options = orthog_options, return_prepoc = F, 
+  subnetwork_builder = subnetwork_init_torch,
   engine = "torch")
 
 
