@@ -90,17 +90,6 @@ if(!is.null(mod)){
 
 source('Scripts/deepregression_functions.R')
 # So muss deep_model bei torch ansatz angegeben werden, da kein Input vorhanden ist
-deep_model <- nn_sequential(
-  nn_linear(in_features = 3, out_features = 32, bias = F),
-  nn_relu(),
-  nn_dropout(p = 0.2),
-  nn_linear(in_features = 32, out_features = 8),
-  nn_relu(),
-  nn_linear(in_features = 8, out_features = 1)
-)
-
-# oder so 
-
 deep_model <- function() nn_sequential(
   nn_linear(in_features = 3, out_features = 32, bias = F),
   nn_relu(),
@@ -188,58 +177,45 @@ train_dl <- dataloader(luz_dataset, batch_size = 32, shuffle = F)
 # scheinbar eher innerhalb angeben
 # muss sonst mehrmals aktiviert werden (Siehe unten)
 # 
-distr_loss <- function(){
-  nn_module(
-    loss = function(input, target){
-      torch_mean(-input$log_prob(target))
-    })
+dis_loss = function(input, target){
+  torch_mean(-input$log_prob(target))
 }
-loss_test <- distr_loss()
-loss_test()$loss
 
-distribution_learning <- function(neural_net_list, family){
+
+distribution_learning <- function(neural_net_list, family, output_dim = 1L){
   nn_module(
+    "distribution_learning_module",
     initialize = function() {
     
       self$distr_parameters <- nn_module_list(
-        lapply(neural_net_list, function(x) x()))
-
-      # this linear predictor will estimate the mean of the normal distribution
-      #self$linear <- nn_linear(1, 1, bias = F)
-      # this parameter will hold the estimate of the variability
-      #self$scale <- nn_linear(1, 1, bias = F)
+        lapply(lapply(neural_net_list, torch_model), function(x) x()))
     },
     
     forward = function(dataset_list) {
-      # we estimate the mean
       distribution_parameters <- lapply(
         1:length(self$distr_parameters), function(x){
         self$distr_parameters[[x]](dataset_list[[x]])
         })
       
-      # check which distributions are already implemented
-      #distr_normal(distribution_parameters[[1]], distribution_parameters[[2]])
-      # ACHTUNG: Hier fehlt noch torch_exp bei sigma
-      # Je nach Verteilung muss exp gemacht werden
-      # Bei expo z.b. Gamma
-      distribution_parameters[[2]] <- torch_exp(distribution_parameters[[2]])
-      do.call(family, distribution_parameters)
-      #distr_normal(preds_loc, torch_exp(preds_sigma))
+      dist_fun <- make_torch_dist(family, output_dim = output_dim)
+      do.call(dist_fun, list(distribution_parameters))
     },
     
-  loss = function(input, target){
-    torch_mean(-input$log_prob(target))
-  })
+  #loss = function(input, target){
+  #  torch_mean(-input$log_prob(target))
+  #}
+  )
 }
-distr_learning <- distribution_learning(neural_net, family = distr_normal)
-distr_learning()
+distr_learning <- distribution_learning(submodules, family = "normal")
 
 pre_fitted <- distr_learning %>% 
-  setup(
-    optimizer = optim_adam
+  luz::setup(
+    optimizer = optim_adam, 
+    loss = dis_loss
+
   ) %>%
   set_opt_hparams(lr = 0.1) 
-fitted <- pre_fitted %>% fit(
+fit_done <- pre_fitted %>% fit(
   data = train_dl, epochs = 10)
 
 plot(mod %>% fitted(),
