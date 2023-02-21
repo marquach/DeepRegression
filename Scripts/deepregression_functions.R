@@ -37,6 +37,7 @@ torch_layer_dense <- function(units, name, trainable = TRUE,
 layer_spline_torch <- function(P, units, name, trainable = TRUE,
                                kernel_initializer = "glorot_uniform"){
   
+  P <- torch_tensor(P)
   spline_layer <- nn_linear(units, out_features = 1, bias = FALSE)
   
   if (kernel_initializer == "glorot_uniform") {
@@ -78,7 +79,9 @@ get_luz_dataset <- dataset(
   },
   
   .getitem = function(index) {
-    indexes <- lapply(self$df_list, function(x) x[index,])
+    indexes <- lapply(self$df_list,
+                      function(x) lapply(x, function(x) x[index,]))
+    
     target <- self$target[index]$view(1)
     list(indexes, target)
   },
@@ -134,7 +137,7 @@ torch_dr <- function(
     model_fun = distribution_learning,
     monitor_metrics = list(),
     from_preds_to_output = from_preds_to_dist,
-    loss = from_dist_to_loss(family = list(...)$family,
+    loss = from_dist_to_loss_torch(family = list(...)$family,
                              weights = weights),
     additional_penalty = NULL,
     ...
@@ -143,12 +146,8 @@ torch_dr <- function(
   # define model
   model <- model_fun(outputs, ...)
   
-  # allow for optimizer as a function of the model
-  if(is.function(optimizer)){
-    optimizer <- optimizer(model)
-  }
   # compile model
-  model %>% luz::setup(optimizer = optimizer,
+  model <- model %>% luz::setup(optimizer = optimizer,
                     loss = loss,
                     metrics = monitor_metrics)
   
@@ -156,14 +155,13 @@ torch_dr <- function(
   
 }
 
-
-distribution_learning <- function(neural_net_list, family, output_dim){
+distribution_learning <- function(neural_net_list, family, output_dim =1L){
   nn_module(
     "distribution_learning_module",
     initialize = function() {
       
       self$distr_parameters <- nn_module_list(
-        lapply(lapply(neural_net_list, torch_model), function(x) x()))
+        lapply(neural_net_list, function(x) x()))
     },
     
     forward = function(dataset_list) {
@@ -172,22 +170,10 @@ distribution_learning <- function(neural_net_list, family, output_dim){
           self$distr_parameters[[x]](dataset_list[[x]])
         })
       
-      dist_fun <- family_to_trochd(family)
+      dist_fun <- make_torch_dist(family, output_dim = output_dim)
+      do.call(dist_fun, list(distribution_parameters))
       
-      # check which distributions are already implemented
-      #distr_normal(distribution_parameters[[1]], distribution_parameters[[2]])
-      # ACHTUNG: Hier fehlt noch torch_exp bei sigma
-      # Je nach Verteilung muss exp gemacht werden
-      # Bei expo z.b. Gamma
-      #distribution_parameters <- prepare_parameters(family, distribution_parameters)
-      #distribution_parameters[[2]] <- torch_exp(distribution_parameters[[2]])
-      
-      do.call(family, distribution_parameters)
-    },
-    
-    #loss = function(input, target){
-    #  torch_mean(-input$log_prob(target))
-    #}
+    }
   )
 }
 
@@ -203,7 +189,7 @@ family_to_trochd <- function(family){
                         poisson = distr_poisson)
 }
 
-family_to_trafo <- function(family, add_const = 1e-8){
+family_to_trafo_torch <- function(family, add_const = 1e-8){
   
   trafo_list <- switch(family,
                        normal = list(function(x) x,
@@ -219,16 +205,15 @@ family_to_trafo <- function(family, add_const = 1e-8){
   
 }
 
-from_dist_to_lossfunction <- function(family, weights = NULL){
+from_dist_to_loss_torch <- function(family, weights = NULL){
   
   # define weights to be equal to 1 if not given
-  if(is.null(weights)) weights <- 1
+  #if(is.null(weights)) weights <- 1
   
   # the negative log-likelihood is given by the negative weighted
   # log probability of the dist
   if(family != "normal") stop("Only normal distribution implemented")
-  negloglik <- function(input, target)
-        -weights*torch_mean(-input$log_prob(target))
+  negloglik <- function(input, target) torch_mean(-input$log_prob(target))
   negloglik
   }
   
@@ -270,13 +255,13 @@ make_torch_dist <- function(family, add_const = 1e-8, output_dim = 1L,
          " If you are trying to model independent",
          " draws from a bernoulli distribution, use family='bernoulli'.")
   
-  if(is.null(trafo_list)) trafo_list <- family_to_trafo(family)
+  if(is.null(trafo_list)) trafo_list <- family_to_trafo_torch(family)
   
   # check if still NULL, then probably wrong family
   if(is.null(trafo_list))
     stop("Family not implemented.")
   
-  ret_fun <- create_family(torch_dist, trafo_list, output_dim)
+  ret_fun <- create_family_torch(torch_dist, trafo_list, output_dim)
   
   attr(ret_fun, "nrparams_dist") <- length(trafo_list)
   
@@ -285,7 +270,7 @@ make_torch_dist <- function(family, add_const = 1e-8, output_dim = 1L,
 }
 
 
-create_family <- function(torch_dist, trafo_list, output_dim = 1L)
+create_family_torch <- function(torch_dist, trafo_list, output_dim = 1L)
 {
   
   if(length(output_dim)==1){
@@ -319,75 +304,6 @@ create_family <- function(torch_dist, trafo_list, output_dim = 1L)
 }
 
 
-
-
-
-
-from_preds_to_dist <- function(
-    list_pred_param,
-    family = NULL,
-    output_dim = 1L,
-    mapping = NULL,
-    from_family_to_distfun = make_torch_dist,
-    from_distfun_to_dist = distfun_to_dist,
-    add_layer_shared_pred = function(x, units) layer_dense(x, units = units,
-                                                           use_bias = FALSE),
-    trafo_list = NULL
-){
-  
-  nr_params <- length(list_pred_param)
-  
-  # check family
-  if(!is.null(family)){
-    if(is.character(family)){
-      if(family %in% c("betar", "gammar", "pareto_ls", "inverse_gamma_ls")){
-        
-        dist_fun <- family_trafo_funs_special(family)
-        
-      }else{
-        
-        dist_fun <- from_family_to_distfun(family, output_dim = output_dim,
-                                           trafo_list = trafo_list)
-        
-      }
-    }else{ # assuming that family is a dist_fun already
-      
-      dist_fun <- family
-      
-    }
-  }else{
-    
-    return(layer_concatenate_identity(unname(list_pred_param)))
-    
-  }
-  nrparams_dist <- attr(dist_fun, "nrparams_dist")
-  if(is.null(nrparams_dist)) nrparams_dist <- nr_params
-  
-  if(nrparams_dist < nr_params)
-  {
-    warning("More formulas specified than parameters available.",
-            " Will only use ", nrparams_dist, " formula(e).")
-    nr_params <- nrparams_dist
-    list_pred_param <- list_pred_param[1:nrparams_dist]
-  }else if(nrparams_dist > nr_params){
-    stop("Length of list_of_formula (", nr_params,
-         ") does not match number of distribution parameters (",
-         nrparams_dist, ").")
-  }
-  
-  if(is.null(names(list_pred_param))){
-    names(list_pred_param) <- names_families(family)
-  }
-  
-  # concatenate predictors
-  preds <- layer_concatenate_identity(unname(list_pred_param))
-  
-  # generate output
-  out <- from_distfun_to_dist(dist_fun, preds)
-  
-  return(out)
-  
-}
 
 
 
