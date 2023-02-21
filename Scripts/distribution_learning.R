@@ -40,7 +40,6 @@ if(!is.null(mod)){
   mod %>% fitted()
 }
 
-
 source('Scripts/deepregression_functions.R')
 # So muss deep_model bei torch ansatz angegeben werden, da kein Input vorhanden ist
 deep_model <- function() nn_sequential(
@@ -51,9 +50,14 @@ deep_model <- function() nn_sequential(
   nn_relu(),
   nn_linear(in_features = 8, out_features = 1)
 )
+# hi3r überall data_trafo() nutzen
+deep_model_data <- mod$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
+gam_data <- mod$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
+lin_data <- mod$init_params$parsed_formulas_contents$loc[[3]]$data_trafo()
+int_data <- mod$init_params$parsed_formulas_contents$loc[[4]]$data_trafo()
 
-
-
+# kann bis Zeile 169 überpsrungen werden
+######
 # Soll subnetwork_init nachstellen
 # Gebe liste von layern pro Parameter aus
 # brauche keine Inputs, also nur Layer initialisieren
@@ -67,11 +71,6 @@ sigma_submodules <- list(torch_layer_dense(units = 1))
 
 submodules <- list(mu_submodules, sigma_submodules)
 
-# hi3r überall data_trafo() nutzen
-deep_model_data <- mod$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
-gam_data <- mod$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
-lin_data <- mod$init_params$parsed_formulas_contents$loc[[3]]$data_trafo()
-int_data <- mod$init_params$parsed_formulas_contents$loc[[4]]$data_trafo()
 
 
 input1 <- torch_tensor(as.matrix(data[,1:3]))
@@ -165,6 +164,7 @@ fit_done <- pre_fitted %>% fit(
 
 plot(mod %>% fitted(),
      as.array(distr_learning()[[1]][[1]]$forward(mu_inputs_list)))
+######
 
 debugonce(deepregression)
 mod_torch <- deepregression(
@@ -193,7 +193,8 @@ train_dl <- dataloader(luz_dataset, batch_size = 32, shuffle = F)
 mod_torch$model %>%
   set_opt_hparams(lr = 0.1)
 
-mod_torch$model %>% luz::fit(
-  data = train_dl, epochs = 100)
+fit_done <- mod_torch$model %>% luz::fit(
+  data = train_dl, epochs = 10)
 
-
+plot(mod %>% fitted(),
+     mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
