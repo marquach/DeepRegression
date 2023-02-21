@@ -1,59 +1,12 @@
-library(deepregression)
-library(torch)
-library(luz)
-
-torch_manual_seed(42)
-x <- torch_arange(0, 1, step = 0.001)$view(c(1001,1))
-#y <- 2*x + 1 + torch_randn(100, 1) # mean von y
-intercept <- 1
-beta1 <- 2
-
-n <- distr_normal(loc = beta1*x, scale = torch_exp(beta1*x))
-y <- n$sample(1)
-plot(as.numeric(x), as.numeric(y))
-
-GaussianLinear <- nn_module(
-  initialize = function() {
-    # this linear predictor will estimate the mean of the normal distribution
-    self$linear <- nn_linear(1, 1, bias = F)
-    # this parameter will hold the estimate of the variability
-    self$scale <- nn_linear(1, 1, bias = F)
-  },
-  forward = function(x) {
-    # we estimate the mean
-    loc <- self$linear(x[[1]])
-    scale <-  self$scale(x[[2]])
-    # return a normal distribution
-    #distr_normal(loc, self$scale)
-    distr_normal(loc, torch_exp(scale))
-    
-  }
-)
-
-model <- GaussianLinear()
-model$parameters
-x_list <- list(x, x)
-opt <- optim_adam(model$parameters)
-
-for (i in 1:2000) {
-  opt$zero_grad()
-  d <- model(x_list)
-  loss <- torch_mean(-d$log_prob(y))
-  loss$backward()
-  opt$step()
-  if (i %% 10 == 0)
-    cat("iter: ", i, " loss: ", loss$item(), "\n")
-}
-gamlss::gamlss(formula = as.numeric(y)~ -1+as.numeric(x),
-       sigma.formula = ~ -1 + as.numeric(x), family = "NO")
-model$parameters
-# true ist 2 also passt es
-
 ################################################################################
 ################################################################################
 ###################### Deepregression example with torch ######################$
 ################################################################################
 ################################################################################
+library(deepregression)
+library(torch)
+library(luz)
+devtools::load_all("deepregression-main/")
 
 set.seed(42)
 n <- 1000
@@ -107,18 +60,12 @@ deep_model <- function() nn_sequential(
 mu_submodules <- list(deep_model(),
                       torch_layer_dense(units = 1),
                       layer_spline_torch(units = 9,
-                                      P = torch_tensor(
-                                        matrix(rep(0, 9*9), ncol = 9))),
+                                      P = 
+                                        matrix(rep(0, 9*9), ncol = 9)),
                       torch_layer_dense(units = 1))
 sigma_submodules <- list(torch_layer_dense(units = 1))
 
 submodules <- list(mu_submodules, sigma_submodules)
-
-neural_net <- lapply(submodules, torch_model)
-neural_net[[1]]()$forward
-neural_net[[2]]()$forward
-neural_net[[1]]()$parameters
-neural_net[[2]]()$parameters
 
 # hi3r überall data_trafo() nutzen
 deep_model_data <- mod$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
@@ -137,8 +84,6 @@ mu_inputs_list <- list(input1,
                        input3,input4)
 sigma_inputs_list <- list(input4)
 test_list <- list(mu_inputs_list, sigma_inputs_list)
-
-
 
 # Erstelle Datensatz für luz setup 
 # Bilde pro Verteilungsparameter eine Liste in der Daten enthalten sind, da 
@@ -188,7 +133,7 @@ distribution_learning <- function(neural_net_list, family, output_dim = 1L){
     initialize = function() {
     
       self$distr_parameters <- nn_module_list(
-        lapply(lapply(neural_net_list, torch_model), function(x) x()))
+        lapply(neural_net_list, function(x) x()))
     },
     
     forward = function(dataset_list) {
@@ -206,18 +151,49 @@ distribution_learning <- function(neural_net_list, family, output_dim = 1L){
   #}
   )
 }
-distr_learning <- distribution_learning(submodules, family = "normal")
+outputs <- lapply(submodules, torch_model)
 
+distr_learning <- distribution_learning(outputs, family = "normal")
 pre_fitted <- distr_learning %>% 
   luz::setup(
     optimizer = optim_adam, 
-    loss = dis_loss
-
-  ) %>%
+    loss = dis_loss)
+pre_fitted <- pre_fitted %>%
   set_opt_hparams(lr = 0.1) 
 fit_done <- pre_fitted %>% fit(
-  data = train_dl, epochs = 10)
+  data = train_dl, epochs = 100)
 
 plot(mod %>% fitted(),
-     as.array(neural_net[[1]]()$forward(mu_inputs_list)))
+     as.array(distr_learning()[[1]][[1]]$forward(mu_inputs_list)))
+
+debugonce(deepregression)
+mod_torch <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1), 
+  list_of_deep_models = list(deep_model = deep_model),
+  data = data, y = y, orthog_options = orthog_options, return_prepoc = F, 
+  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
+  engine = "torch")
+
+deep_model_data <- torch_tensor(as.matrix(data[,1:3]))
+lin_data <- torch_tensor(lin_data)
+gam_data <- torch_tensor(gam_data)
+int_data <- torch_tensor(int_data)
+
+mu_inputs_list <- list(deep_model_data,
+                       gam_data,
+                       lin_data,
+                       int_data)
+sigma_inputs_list <- list(int_data)
+test_list <- list(mu_inputs_list, sigma_inputs_list)
+
+luz_dataset <- get_luz_dataset(df_list = test_list,
+                               target  = torch_tensor(y))
+train_dl <- dataloader(luz_dataset, batch_size = 32, shuffle = F)
+
+mod_torch$model %>%
+  set_opt_hparams(lr = 0.1)
+
+mod_torch$model %>% luz::fit(
+  data = train_dl, epochs = 100)
+
 
