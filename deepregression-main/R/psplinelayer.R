@@ -93,6 +93,7 @@ layer_spline = function(units = 1L, P, name, trainable = TRUE,
 layer_spline_torch <- function(P, units, name, trainable = TRUE,
                                kernel_initializer = "glorot_uniform"){
   
+  P <- torch_tensor(P)
   spline_layer <- nn_linear(units, out_features = 1, bias = FALSE)
   
   if (kernel_initializer == "glorot_uniform") {
