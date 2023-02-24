@@ -120,22 +120,22 @@ deepregression <- function(
 )
 {
   
-  #if(!is.null(tf_seed))
-  #  try(tensorflow::set_random_seed(tf_seed), silent = TRUE)
+  if(!is.null(tf_seed))
+    try(tensorflow::set_random_seed(tf_seed), silent = TRUE)
   
   # first check if an env is available
-  #if(!reticulate::py_available())
-  #{
-  #  message("No Python Environemt available. Use check_and_install() ",
-  #          "to install recommended environment.")
-  #  invisible(return(NULL))
-  #}
+  if(!reticulate::py_available())
+  {
+    message("No Python Environemt available. Use check_and_install() ",
+            "to install recommended environment.")
+    invisible(return(NULL))
+  }
 
-  #if(!py_module_available("tensorflow"))
-  #{
-  #  message("Tensorflow not available. Use install_tensorflow().")
-  #  invisible(return(NULL))
-  #}
+  if(!py_module_available("tensorflow"))
+  {
+    message("Tensorflow not available. Use install_tensorflow().")
+    invisible(return(NULL))
+  }
   
   # convert data.frame to list
   if(is.data.frame(data)){
@@ -289,7 +289,7 @@ deepregression <- function(
   if(verbose) cat("Preparing subnetworks...")
 
   # create gam data inputs
-  if(!is.null(so$gamdata)){
+  if(!is.null(so$gamdata) & engine != 'torch'){
     gaminputs <- makeInputs(so$gamdata$data_trafos, "gam_inp")
   }
 
@@ -301,19 +301,20 @@ deepregression <- function(
                             split_fun = orthog_options$split_fun,
                             shared_layers = weight_options[[i]]$shared_layers,
                             param_nr = i,
-                            gaminputs = gaminputs, engine = engine
+                            gaminputs = gaminputs
                             )
   )
   if(verbose) cat(" Done.\n")
 
   names(additive_predictors) <- names(list_of_formulas)
-  if(!is.null(so$gamdata)){
+  if(!is.null(so$gamdata) & engine != 'torch'){
     gaminputs <- list(gaminputs)
     names(gaminputs) <- "gaminputs"
     additive_predictors <- c(gaminputs, additive_predictors)
-  }else{
+  }else if(engine != 'torch'){
     additive_predictors <- c(list(NULL), additive_predictors)
-  }
+  } else  additive_predictors <- additive_predictors
+
 
   # initialize model
   if(verbose) cat("Building model...")
@@ -341,7 +342,7 @@ deepregression <- function(
               fit_fun = fitting_function)
 
 
-  class(ret) <- "deepregression"
+  if(engine != "torch") class(ret) <- "deepregression"
 
   return(ret)
 
@@ -628,12 +629,10 @@ keras_dr <- function(
 from_dist_to_loss <- function(
   family,
   ind_fun = function(x) tfd_independent(x),
-  weights = NULL
-){
+  weights = NULL){
 
   # define weights to be equal to 1 if not given
   if(is.null(weights)) weights <- 1
-
   # the negative log-likelihood is given by the negative weighted
   # log probability of the dist
   if(!is.character(family) || family!="pareto_ls"){
