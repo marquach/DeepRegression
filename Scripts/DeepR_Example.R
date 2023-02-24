@@ -38,7 +38,7 @@ debugonce(deepregression)
 mod_torch <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
   data = data, y = y, orthog_options = orthog_options, return_prepoc = F, 
-  subnetwork_builder = subnetwork_init_torch,
+  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch")
 
 
@@ -49,7 +49,8 @@ if(!is.null(mod)){
   mod %>% plot()
 }
 
-
+fit_done <- mod_torch %>% fit(
+  data = train_dl, epochs = 10)
 
 
 # sollte zwei params haben (loc, scale)
