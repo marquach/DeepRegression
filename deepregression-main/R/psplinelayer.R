@@ -119,21 +119,21 @@ layer_spline_torch <- function(P, units, name, trainable = TRUE,
 #' @param kernel_initializer initializer; for coefficients
 #' @return Torch layer
 #' @export
-torch_layer_dense <- function(units, name, trainable = TRUE,
+layer_dense_torch <- function(units, name, trainable = TRUE,
                               kernel_initializer = "glorot_uniform",
                               use_bias = FALSE){
   
-  torch_layer <- nn_linear(units, out_features = 1, bias = use_bias)
+  layer <- nn_linear(units, out_features = 1, bias = use_bias)
   
   if (kernel_initializer == "glorot_uniform") {
     nn_init_xavier_uniform_(
-      tensor = torch_layer$weight,
+      tensor = layer$weight,
       gain = nn_init_calculate_gain(nonlinearity = "linear"))
   }
   
-  if(!trainable) torch_layer$parameters$weight$requires_grad = FALSE
+  if(!trainable) layer$parameters$weight$requires_grad = FALSE
   
-  torch_layer
+  layer
 }
 
 tf_incross = function(w, P) {
