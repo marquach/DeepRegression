@@ -324,7 +324,8 @@ deepregression <- function(
                          ...)
   if(verbose) cat(" Done.\n")
 
-  ret <- list(model = model,
+  if(engine != "torch") {
+    ret <- list(model = model,
               init_params =
                 list(
                   list_of_formulas = list_of_formulas,
@@ -339,10 +340,26 @@ deepregression <- function(
                   image_var = image_var,
                   prepare_y_valdata = function(x) as.matrix(x)
                 ),
-              fit_fun = fitting_function)
-
-
-  if(engine != "torch") class(ret) <- "deepregression"
+              fit_fun = fitting_function)}
+  if(engine == "torch"){
+    ret <- list(
+      model = model,
+                init_params =
+                  list(
+                    list_of_formulas = list_of_formulas,
+                    gamdata = so$gamdata,
+                    additive_predictors = additive_predictors,
+                    parsed_formulas_contents = parsed_formulas_contents,
+                    y = y,
+                    ellipsis = list(...),
+                    family = family,
+                    penalty_options = penalty_options,
+                    orthog_options = orthog_options,
+                    image_var = image_var,
+                    prepare_y_valdata = function(x) as.matrix(x)
+                  ))
+  }
+  class(ret) <- "deepregression"
 
   return(ret)
 
