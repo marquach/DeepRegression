@@ -654,7 +654,7 @@ dnn_processor <- function(dnn){
 }
 
 dnn_placeholder_processor <- function(dnn){
-  function(term, data, output_dim, param_nr, controls=NULL){
+  function(term, data, output_dim, param_nr, controls=NULL, engine){
     list(
       data_trafo = function() data[extractvar(term)],
       predict_trafo = function(newdata) newdata[extractvar(term)],
@@ -665,7 +665,7 @@ dnn_placeholder_processor <- function(dnn){
 }
 
 dnn_image_placeholder_processor <- function(dnn, size){
-  function(term, data, output_dim, param_nr, controls=NULL){
+  function(term, data, output_dim, param_nr, controls=NULL, engine){
     list(
       data_trafo = function() as.data.frame(data[extractvar(term)]),
       predict_trafo = function(newdata) as.data.frame(newdata[extractvar(term)]),
