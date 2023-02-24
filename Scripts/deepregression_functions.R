@@ -172,48 +172,8 @@ distribution_learning <- function(neural_net_list, family, output_dim =1L){
   )
 }
 
-
-
-
-family_to_trochd <- function(family){
-  # define dist_fun
-  torchd_dist <- switch(family,
-                        normal = distr_normal,
-                        bernoulli = distr_bernoulli, 
-                        gamma = distr_gamma,
-                        poisson = distr_poisson)
-}
-
-family_to_trafo_torch <- function(family, add_const = 1e-8){
-  
-  trafo_list <- switch(family,
-                       normal = list(function(x) x,
-                                function(x) torch_add(add_const, torch_exp(x))),
-                       bernoulli = list(function(x) x),
-                       gamma = list(
-                         function(x) torch_add(add_const, torch_exp(x)),
-                         function(x) torch_add(add_const, torch_exp(x))),
-                       poisson = list(function(x) torch_add(add_const, torch_exp(x)))
-  )
-  
-  return(trafo_list)
-  
-}
-
-from_dist_to_loss_torch <- function(family, weights = NULL){
-  
-  # define weights to be equal to 1 if not given
-  #if(is.null(weights)) weights <- 1
-  
-  # the negative log-likelihood is given by the negative weighted
-  # log probability of the dist
-  if(family != "normal") stop("Only normal distribution implemented")
-  negloglik <- function(input, target) torch_mean(-input$log_prob(target))
-  negloglik
-  }
-  
 make_torch_dist <- function(family, add_const = 1e-8, output_dim = 1L,
-                          trafo_list = NULL){
+                            trafo_list = NULL){
   
   torch_dist <- family_to_trochd(family)
   
@@ -229,7 +189,7 @@ make_torch_dist <- function(family, add_const = 1e-8, output_dim = 1L,
                  "von_mises_fisher",
                  "wishart",
                  "zipf") | grepl("multivariate", family) | grepl("vector", family))
-  stop("Family ", family, " not implemented yet.")
+    stop("Family ", family, " not implemented yet.")
   
   if(family=="binomial")
     stop("Family binomial not implemented yet.",
@@ -250,6 +210,30 @@ make_torch_dist <- function(family, add_const = 1e-8, output_dim = 1L,
   
 }
 
+family_to_trochd <- function(family){
+  # define dist_fun
+  torchd_dist <- switch(family,
+                        normal = distr_normal,
+                        bernoulli = distr_bernoulli, 
+                        gamma = distr_gamma,
+                        poisson = distr_poisson)
+}
+
+family_to_trafo_torch <- function(family, add_const = 1e-8){
+  
+  trafo_list <- switch(family,
+                       normal = list(function(x) x,
+                                     function(x) torch_add(add_const, torch_exp(x))),
+                       bernoulli = list(function(x) x),
+                       gamma = list(
+                         function(x) torch_add(add_const, torch_exp(x)),
+                         function(x) torch_add(add_const, torch_exp(x))),
+                       poisson = list(function(x) torch_add(add_const, torch_exp(x)))
+  )
+  
+  return(trafo_list)
+  
+}
 
 create_family_torch <- function(torch_dist, trafo_list, output_dim = 1L)
 {
@@ -265,18 +249,18 @@ create_family_torch <- function(torch_dist, trafo_list, output_dim = 1L)
     
   }
   #else{
-    
-    # tensor-shaped output (assuming the last dimension to be 
-    # the distribution parameter dimension if tfd_dist has multiple arguments)
-   # dist_dim <- length(trafo_list)
+  
+  # tensor-shaped output (assuming the last dimension to be 
+  # the distribution parameter dimension if tfd_dist has multiple arguments)
+  # dist_dim <- length(trafo_list)
   #  ret_fun <- function(x) do.call(tfd_dist,
-   #                                lapply(1:(x$shape[[length(x$shape)]]/dist_dim),
-    #                                     function(i)
-     #                                       trafo_list[[i]](
-      #                                        tf_stride_last_dim_tensor(x,(i-1L)*dist_dim+1L,
-     #                                                                   (i-1L)*dist_dim+dist_dim)))
-    #) 
-    
+  #                                lapply(1:(x$shape[[length(x$shape)]]/dist_dim),
+  #                                     function(i)
+  #                                       trafo_list[[i]](
+  #                                        tf_stride_last_dim_tensor(x,(i-1L)*dist_dim+1L,
+  #                                                                   (i-1L)*dist_dim+dist_dim)))
+  #) 
+  
   #}
   
   attr(ret_fun, "nrparams_dist") <- length(trafo_list)
@@ -286,9 +270,15 @@ create_family_torch <- function(torch_dist, trafo_list, output_dim = 1L)
 }
 
 
-
-
-
-
-
-
+from_dist_to_loss_torch <- function(family, weights = NULL){
+  
+  # define weights to be equal to 1 if not given
+  #if(is.null(weights)) weights <- 1
+  
+  # the negative log-likelihood is given by the negative weighted
+  # log probability of the dist
+  if(family != "normal") stop("Only normal distribution implemented")
+  negloglik <- function(input, target) torch_mean(-input$log_prob(target))
+  negloglik
+  }
+  
