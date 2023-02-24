@@ -93,11 +93,6 @@ get_luz_dataset <- dataset(
 )
 
 
-# Funtkion für Subnetwork Init in torch
-# Schreibe einfach selber eine mit endung torch und lade diese dann am Anfang,
-# da subnetwork_builder eine Parameter der Funktion ist
-
-
 subnetwork_init_torch <- function(pp, deep_top = NULL, 
                             orthog_fun = orthog_tf, 
                             split_fun = split_model,
