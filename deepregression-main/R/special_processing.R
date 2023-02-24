@@ -245,7 +245,7 @@ int_processor <- function(term, data, output_dim, param_nr, controls, engine){
     without_layer = tf$identity
   }
   if(engine == "torch"){
-    layer_class = torch_layer_dense
+    layer_class = layer_dense_torch
     without_layer = nn_identity
   }
   
@@ -281,7 +281,7 @@ lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
     without_layer = tf$identity
   }
   if(engine == "torch"){
-    layer_class = torch_layer_dense
+    layer_class = layer_dense_torch
     without_layer = nn_identity
   }
   
