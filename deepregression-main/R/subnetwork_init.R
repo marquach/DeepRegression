@@ -105,6 +105,7 @@ subnetwork_init <- function(pp, deep_top = NULL,
   if(all(sapply(pp_in, function(x) is.null(x$right_from_oz)))){ # if there is no term to orthogonalize
     
 
+    
     outputs <- lapply(1:length(pp_in), function(i) pp_lay[[layer_matching[i]]]$layer(inputs[[i]]))
     outputs <- summary_layer(outputs)
     

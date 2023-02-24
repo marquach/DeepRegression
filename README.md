@@ -20,6 +20,7 @@ The requirements are given in the `DESCRIPTION`. If you load the package manuall
   - dplyr
   - mgcv
   - torch
+  - luz
 
 # Related literature
 
