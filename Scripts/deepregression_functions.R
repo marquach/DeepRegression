@@ -7,20 +7,20 @@
 #' @param kernel_initializer initializer; for basis coefficients
 #' @return Torch layer
 #' @export
-torch_layer_dense <- function(units, name, trainable = TRUE,
+layer_dense_torch <- function(units, name, trainable = TRUE,
                          kernel_initializer = "glorot_uniform"){
   
-  torch_layer <- nn_linear(units, out_features = 1, bias = FALSE)
+  layer_torch <- nn_linear(units, out_features = 1, bias = FALSE)
   
   if (kernel_initializer == "glorot_uniform") {
     nn_init_xavier_uniform_(
-      tensor = torch_layer$weight,
+      tensor = layer_torch$weight,
       gain = nn_init_calculate_gain(nonlinearity = "linear"))
   }
   
-  if(!trainable) torch_layer$parameters$weight$requires_grad = FALSE
+  if(!trainable) layer_torch$parameters$weight$requires_grad = FALSE
   
-  torch_layer
+  layer_torch
 }
 
 
@@ -56,7 +56,7 @@ layer_spline_torch <- function(P, units, name, trainable = TRUE,
 }
 
 
-torch_model <-  function(submodules_list){
+model_torch <-  function(submodules_list){
   nn_module(
     classname = "torch_model",
     initialize = function() {
@@ -142,7 +142,7 @@ torch_dr <- function(
     additional_penalty = NULL,
     ...
 ){
-  outputs <- lapply(list_pred_param, torch_model)
+  outputs <- lapply(list_pred_param, model_torch)
   # define model
   model <- model_fun(outputs, ...)
   
@@ -217,21 +217,8 @@ from_dist_to_loss_torch <- function(family, weights = NULL){
   negloglik
   }
   
-#from_preds_to_dist_torch
-# first part skipped
-# then amount of parameters
-# check family
-#  from_family_to_distfun
-# make_tfd_dist:
-#   - family_to_trafo parameter properties (Normal: mu: x and sigma torch_exp(...))
-#   - create_family(tfd_dist, trafo_list, output_dim)
-# create_family:
-#   - 
-
-
 make_torch_dist <- function(family, add_const = 1e-8, output_dim = 1L,
-                          trafo_list = NULL)
-{
+                          trafo_list = NULL){
   
   torch_dist <- family_to_trochd(family)
   
@@ -246,8 +233,7 @@ make_torch_dist <- function(family, add_const = 1e-8, output_dim = 1L,
                  "von_mises",
                  "von_mises_fisher",
                  "wishart",
-                 "zipf"
-  ) | grepl("multivariate", family) | grepl("vector", family))
+                 "zipf") | grepl("multivariate", family) | grepl("vector", family))
   stop("Family ", family, " not implemented yet.")
   
   if(family=="binomial")
@@ -282,20 +268,21 @@ create_family_torch <- function(torch_dist, trafo_list, output_dim = 1L)
                                             trafo_list[[i]](x[[i]]))
     ) 
     
-  }else{
+  }
+  #else{
     
     # tensor-shaped output (assuming the last dimension to be 
     # the distribution parameter dimension if tfd_dist has multiple arguments)
-    dist_dim <- length(trafo_list)
-    ret_fun <- function(x) do.call(tfd_dist,
-                                   lapply(1:(x$shape[[length(x$shape)]]/dist_dim),
-                                          function(i)
-                                            trafo_list[[i]](
-                                              tf_stride_last_dim_tensor(x,(i-1L)*dist_dim+1L,
-                                                                        (i-1L)*dist_dim+dist_dim)))
-    ) 
+   # dist_dim <- length(trafo_list)
+  #  ret_fun <- function(x) do.call(tfd_dist,
+   #                                lapply(1:(x$shape[[length(x$shape)]]/dist_dim),
+    #                                     function(i)
+     #                                       trafo_list[[i]](
+      #                                        tf_stride_last_dim_tensor(x,(i-1L)*dist_dim+1L,
+     #                                                                   (i-1L)*dist_dim+dist_dim)))
+    #) 
     
-  }
+  #}
   
   attr(ret_fun, "nrparams_dist") <- length(trafo_list)
   
