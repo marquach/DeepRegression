@@ -34,10 +34,7 @@ mod <- deepregression(
 
 if(!is.null(mod)){
   # train for more than 10 epochs to get a better model
-  mod %>% fit(epochs = 10, early_stopping = TRUE)
-  mod %>% coef()
-  mod %>% plot()
-  mod %>% fitted()
+  mod %>% fit(epochs = 100, early_stopping = TRUE)
 }
 
 source('Scripts/deepregression_functions.R')
@@ -85,13 +82,19 @@ mod_torch$model <- mod_torch$model %>%
   set_opt_hparams(lr = 0.1)
 
 fit_done <- mod_torch$model %>% luz::fit(
-  data = train_dl, epochs = 10)
+  data = train_dl, epochs = 50)
 
 plot(mod %>% fitted(),
      mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
 
-#now with validation
+mod %>% plot()
+points(data$xa,
+       as.array(gam_data)%*%
+         t(as.array(mod_torch$model()[[1]][[1]]$parameters[6]$sub)), col="red")
 
+
+
+#now with validation
 train_ids <- sample(1:dim(data)[1], size = 0.6 * dim(data)[1])
 valid_ids <- sample(setdiff(1:dim(data)[1], train_ids), size = 0.2 * dim(data)[1])
 
