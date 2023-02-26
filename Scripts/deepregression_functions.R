@@ -130,7 +130,7 @@ subnetwork_init_torch <- function(pp, deep_top = NULL,
 torch_dr <- function(
     list_pred_param,
     optimizer = torch::optim_adam,
-    model_fun = distribution_learning,
+    model_fun = NULL, #nicht mehr nötig bei Torch?
     monitor_metrics = list(),
     from_preds_to_output = from_preds_to_dist_torch,
     loss = from_dist_to_loss_torch(family = list(...)$family,
@@ -330,7 +330,7 @@ from_dist_to_loss_torch <- function(family, weights = NULL){
   
   # the negative log-likelihood is given by the negative weighted
   # log probability of the dist
-  if(family != "normal") stop("Only normal distribution implemented")
+  if(family != "normal") stop("Only normal distribution tested")
   negloglik <- function(input, target) torch_mean(-input$log_prob(target))
   negloglik
   }
