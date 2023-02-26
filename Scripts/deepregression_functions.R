@@ -1,4 +1,4 @@
-#' Function to define a torch layer similiar to a tf dense layer
+#' Function to define a torch layer similar to a tf dense layer
 #' 
 #' @param units integer; number of output units
 #' @param P matrix; penalty matrix
@@ -119,7 +119,8 @@ subnetwork_init_torch <- function(pp, deep_top = NULL,
   if(all(sapply(pp_in, function(x) is.null(x$right_from_oz)))){ 
     # if there is no term to orthogonalize
     
-      outputs <- lapply(1:length(pp_in), function(i) pp_lay[[layer_matching[i]]]$layer())
+      outputs <- lapply(1:length(pp_in),
+                        function(i) pp_lay[[layer_matching[i]]]$layer())
       return(outputs) 
   
   }
@@ -165,6 +166,10 @@ distribution_learning <- function(neural_net_list, family, output_dim =1L){
           self$distr_parameters[[x]](dataset_list[[x]])
         })
       
+      
+      # Hier nicht ganz sicher ob es so passt
+      # from_preds_to_dist ist nicht untergebracht
+      # bin mir aber nicht sicher, ob es überhaupt bei torch geht
       dist_fun <- make_torch_dist(family, output_dim = output_dim)
       do.call(dist_fun, list(distribution_parameters))
       
