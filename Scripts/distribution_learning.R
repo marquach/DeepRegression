@@ -25,7 +25,7 @@ orthog_options = orthog_control(orthogonalize = F)
 
 formula <- ~ 1 + deep_model(x1,x2,x3) + s(xa) + x1
 
-#debugonce(deepregression)
+debugonce(deepregression)
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
   data = data, y = y,orthog_options = orthog_options,
@@ -80,7 +80,7 @@ train_dl <- dataloader(luz_dataset, batch_size = 32, shuffle = F)
 
 mod_torch$model <- mod_torch$model %>%
   set_opt_hparams(lr = 0.1)
-
+debugonce(fit)
 fit_done <- mod_torch$model %>% luz::fit(
   data = train_dl, epochs = 50)
 
