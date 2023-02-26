@@ -49,7 +49,7 @@ deep_model <- function() nn_sequential(
   nn_linear(in_features = 8, out_features = 1)
 )
 
-#debugonce(deepregression)
+debugonce(deepregression)
 mod_torch <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1), 
   list_of_deep_models = list(deep_model = deep_model),
