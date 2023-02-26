@@ -76,33 +76,17 @@ test_list <- list(mu_inputs_list, sigma_inputs_list)
 
 luz_dataset <- get_luz_dataset(df_list = test_list,
                                target  = torch_tensor(y))
-train_dl <- dataloader(luz_dataset, batch_size = 32, shuffle = F)
-
-mod_torch$model <- mod_torch$model %>%
-  set_opt_hparams(lr = 0.1)
-debugonce(fit)
-fit_done <- mod_torch$model %>% luz::fit(
-  data = train_dl, epochs = 50)
-
-plot(mod %>% fitted(),
-     mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
-
-mod %>% plot()
-points(data$xa,
-       as.array(gam_data)%*%
-         t(as.array(mod_torch$model()[[1]][[1]]$parameters[6]$sub)), col="red")
 
 
-
-#now with validation
-train_ids <- sample(1:dim(data)[1], size = 0.6 * dim(data)[1])
+#now with validation and callback
+train_ids <- sample(1:dim(data)[1], size = 0.8 * dim(data)[1])
 valid_ids <- sample(setdiff(1:dim(data)[1], train_ids), size = 0.2 * dim(data)[1])
 
 train_ds <- dataset_subset(luz_dataset, indices = train_ids)
 valid_ds <- dataset_subset(luz_dataset, indices = valid_ids)
 
-train_dl <- dataloader(train_ds, batch_size = 29)
-valid_dl <- dataloader(valid_ds, batch_size = 29)
+train_dl <- dataloader(train_ds, batch_size = 32)
+valid_dl <- dataloader(valid_ds, batch_size = 32)
 
 mod_torch <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1), 
@@ -116,7 +100,26 @@ mod_torch$model <- mod_torch$model %>%
   set_opt_hparams(lr = 0.1)
 
 fit_done <- mod_torch$model %>% 
-  luz::fit(train_dl, epochs = 10, valid_data = valid_dl)
+  luz::fit(train_dl, epochs = 100, valid_data = valid_dl,
+           luz_callback_early_stopping(patience = 5))
 
 plot(mod %>% fitted(),
      mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
+
+fit_done <- mod_torch$model %>% 
+  luz::fit(train_dl, epochs = 50, valid_data = valid_dl)
+
+plot(mod %>% fitted(),
+     mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
+
+mod %>% plot()
+points(data$xa,
+       torch_matmul(gam_data,
+                 mod_torch$model()[[1]][[1]]$parameters[6]$sub$t()), col="red")
+
+
+
+
+
+
+
