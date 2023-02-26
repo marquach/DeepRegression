@@ -132,15 +132,16 @@ torch_dr <- function(
     optimizer = torch::optim_adam,
     model_fun = distribution_learning,
     monitor_metrics = list(),
-    from_preds_to_output = from_preds_to_dist,
+    from_preds_to_output = from_preds_to_dist_torch,
     loss = from_dist_to_loss_torch(family = list(...)$family,
                              weights = weights),
     additional_penalty = NULL,
     ...
 ){
-  outputs <- lapply(list_pred_param, model_torch)
+
+  out <- from_preds_to_output(list_pred_param, ...)
   # define model
-  model <- model_fun(outputs, ...)
+  model <- out
   
   # compile model
   model <- model %>% luz::setup(optimizer = optimizer,
@@ -151,13 +152,62 @@ torch_dr <- function(
   
 }
 
-distribution_learning <- function(neural_net_list, family, output_dim =1L){
+from_preds_to_dist_torch <- function(
+    list_pred_param, family = NULL,
+    output_dim = 1L,
+    mapping = NULL,
+    from_family_to_distfun = make_torch_dist,
+    from_distfun_to_dist = distfun_to_dist_torch,
+    #add_layer_shared_pred = function(x, units) layer_dense_torch(x, units = units,
+    #                                                       use_bias = FALSE),
+    trafo_list = NULL){
+  
+  nr_params <- length(list_pred_param)
+  
+  # check family
+  if(!is.null(family)){
+    if(is.character(family)){
+      dist_fun <- from_family_to_distfun(family, output_dim = output_dim,
+                                         trafo_list = trafo_list)
+    }
+  } else{ # assuming that family is a dist_fun already
+    dist_fun <- family
+  } 
+  
+  nrparams_dist <- attr(dist_fun, "nrparams_dist")
+  if(is.null(nrparams_dist)) nrparams_dist <- nr_params
+  
+  if(nrparams_dist < nr_params)
+  {
+    warning("More formulas specified than parameters available.",
+            " Will only use ", nrparams_dist, " formula(e).")
+    nr_params <- nrparams_dist
+    list_pred_param <- list_pred_param[1:nrparams_dist]
+  }else if(nrparams_dist > nr_params){
+    stop("Length of list_of_formula (", nr_params,
+         ") does not match number of distribution parameters (",
+         nrparams_dist, ").")
+  }
+  
+  if(is.null(names(list_pred_param))){
+    names(list_pred_param) <- names_families(family)
+  }
+  
+  preds <- lapply(list_pred_param, model_torch)
+  
+  # generate output
+  out <- from_distfun_to_dist_torch(dist_fun, preds)
+  
+}
+
+
+from_distfun_to_dist_torch <- function(dist_fun, preds){
   nn_module(
-    "distribution_learning_module",
+    
     initialize = function() {
       
       self$distr_parameters <- nn_module_list(
-        lapply(neural_net_list, function(x) x()))
+        lapply(preds, function(x) x()))
     },
     
     forward = function(dataset_list) {
@@ -165,17 +215,15 @@ distribution_learning <- function(neural_net_list, family, output_dim =1L){
         1:length(self$distr_parameters), function(x){
           self$distr_parameters[[x]](dataset_list[[x]])
         })
-      
-      
-      # Hier nicht ganz sicher ob es so passt
-      # from_preds_to_dist ist nicht untergebracht
-      # bin mir aber nicht sicher, ob es überhaupt bei torch geht
-      dist_fun <- make_torch_dist(family, output_dim = output_dim)
-      do.call(dist_fun, list(distribution_parameters))
-      
+      dist_fun(distribution_parameters)
     }
   )
 }
+
+
+
+
+
 
 make_torch_dist <- function(family, add_const = 1e-8, output_dim = 1L,
                             trafo_list = NULL){
