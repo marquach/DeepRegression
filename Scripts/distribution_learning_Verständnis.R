@@ -106,6 +106,45 @@ plot(mod %>% fitted(),
      as.array(distr_learning()[[1]][[1]]$forward(mu_inputs_list)))
 
 
+dist_fun_test <- make_torch_dist(family = "normal")
+preds_test <-  lapply(submodules, model_torch)
+
+dis_loss = function(input, target){
+  torch_mean(-input$log_prob(target))
+}
+# distfun_to_dist_torch
+
+from_distfun_to_dist_torch <- function(dist_fun, preds){
+  nn_module(
+    
+    initialize = function() {
+      
+      self$distr_parameters <- nn_module_list(
+        lapply(preds, function(x) x()))
+    },
+    
+    forward = function(dataset_list) {
+      distribution_parameters <- lapply(
+        1:length(self$distr_parameters), function(x){
+          self$distr_parameters[[x]](dataset_list[[x]])
+        })
+      dist_fun(distribution_parameters)
+    }
+  )
+}
+
+out_test <- distfun_to_dist_torch(dist_fun_test, preds_test)
+model_test <- out_test
+pre_fit_test <- model_test %>% luz::setup(
+  optimizer = optim_adam, 
+  loss = dis_loss)
+pre_fit_test <- pre_fit_test %>%
+  set_opt_hparams(lr = 0.1) 
+
+debugonce(fit)
+fit_done_test <- pre_fit_test %>% fit(
+  data = train_dl, epochs = 100)
+
 
 
 
