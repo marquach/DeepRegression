@@ -20,6 +20,7 @@ Some things still need some dedication:
     - it looks like there is also no really summary in python itself [(Link)](https://github.com/TylerYep/torchinfo)
   - Also, the layers of the distribution parameters are not yet named. Same holds for the different layers which represent the parts of used formula. 
     - there is already an idea, which uses a combination of eval() and parse()
+    - better idea is to use privates
   - Also, there are no generic fit(), predict(), plot() and coef() for the torch model
     - Doable but not needed for the proof-of-concept
 
