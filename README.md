@@ -1,8 +1,11 @@
 
 # deepregression Torch (Proof-of-Concept)
 
+This project was part of the Winter 2022/23 course Applied Deep Learning with TensorFlow and Pytorch at the LMU Munich, supervised by Dr. David Rügamer and Chris Kolb.
 
-This is a proof-of-concept which was done in *Applied Deep Learning*. It shows that torch can be used as well as tensorflow to build and fit a deepregression model from the [deepregression](https://github.com/davidruegamer/deepregression) package.
+The project is a proof-of-concept. It shows that torch can be used as well as tensorflow to build and fit a deepregression model from the [deepregression](https://github.com/davidruegamer/deepregression) package.
+
+
 
 # Installation
 
