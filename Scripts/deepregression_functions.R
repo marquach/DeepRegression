@@ -67,8 +67,8 @@ model_torch <-  function(submodules_list){
     },
     
     forward = function(dataset_list) {
-      subnetworks <- lapply(1:length(self$subnetworks), function(x){
-        self$subnetworks[[x]](dataset_list[[x]])
+      subnetworks <- lapply(1:length(self[[1]]), function(x){
+        self[[1]][[x]](dataset_list[[x]])
       })
       Reduce(f = "+", x = subnetworks)}
   )}
@@ -218,8 +218,8 @@ from_distfun_to_dist_torch <- function(dist_fun, preds){
     
     forward = function(dataset_list) {
       distribution_parameters <- lapply(
-        1:length(self$distr_parameters), function(x){
-          self$distr_parameters[[x]](dataset_list[[x]])
+        1:length(self[[1]]), function(x){
+          self[[1]][[x]](dataset_list[[x]])
         })
       dist_fun(distribution_parameters)
     }
