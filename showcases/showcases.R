@@ -77,7 +77,8 @@ cbind(
   unlist(lapply(mod_torch$model()$parameters[4:6], function(x) t(as.array(x)))))
 # not that equal
 plot(mod_tf %>% fitted(),
-     mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
+     mod_torch$model()[[1]][[1]]$forward(mu_inputs_list),
+    xlab = "tensorflow", ylab = "torch")
 cor(mod_tf %>% fitted(),
      as.array(mod_torch$model()[[1]][[1]]$forward(mu_inputs_list)))
 # coefs are not that equal, but plot shows they are almost equal and
