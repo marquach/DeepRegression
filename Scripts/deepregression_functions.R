@@ -60,7 +60,10 @@ model_torch <-  function(submodules_list){
   nn_module(
     classname = "torch_model",
     initialize = function() {
-      self$subnetworks <- nn_module_list(submodules_list)
+      self$subnetwork <- nn_module_list(submodules_list)
+      names(self$subnetwork$.__enclos_env__$private$modules_) <- 
+        names(submodules_list)
+      
     },
     
     forward = function(dataset_list) {
@@ -121,6 +124,8 @@ subnetwork_init_torch <- function(pp, deep_top = NULL,
     
       outputs <- lapply(1:length(pp_in),
                         function(i) pp_lay[[layer_matching[i]]]$layer())
+      names(outputs) <- sapply(1:length(pp_in),
+                               function(i) pp_lay[[layer_matching[i]]]$term)
       return(outputs) 
   
   }
@@ -208,6 +213,7 @@ from_distfun_to_dist_torch <- function(dist_fun, preds){
       
       self$distr_parameters <- nn_module_list(
         lapply(preds, function(x) x()))
+      names(self$distr_parameters$.__enclos_env__$private$modules_) <- names(preds)
     },
     
     forward = function(dataset_list) {
