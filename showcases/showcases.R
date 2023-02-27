@@ -72,16 +72,18 @@ mod_torch$model %>%
   luz::fit(train_dl, epochs = 100)
 # loss pretty high at beginning (initialization bad?)
 mod_torch$model()[[1]]
-mod_tf %>% coef()
-lapply(mod_torch$model()$parameters[4:6], function(x) t(as.array(x)))
-
+cbind(
+  unlist(mod_tf %>% coef()),
+  unlist(lapply(mod_torch$model()$parameters[4:6], function(x) t(as.array(x)))))
+# not that equal
 plot(mod_tf %>% fitted(),
      mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
+cor(mod_tf %>% fitted(),
+     as.array(mod_torch$model()[[1]][[1]]$forward(mu_inputs_list)))
+# coefs are not that equal, but plot shows they are almost equal and
+# also correlation close to 1
 
 
-
-mod_tf$init_params$additive_predictors$gaminputs$`s(xa)+TRUE`$shape
-mod_torch$init_params$additive_predictors$loc[[2]]$parameters$weight$shape[2]
 
 
 
