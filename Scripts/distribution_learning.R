@@ -25,7 +25,7 @@ orthog_options = orthog_control(orthogonalize = F)
 
 formula <- ~ 1 + deep_model(x1,x2,x3) + s(xa) + x1
 
-debugonce(deepregression)
+#debugonce(deepregression)
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
   data = data, y = y,orthog_options = orthog_options,
@@ -57,7 +57,7 @@ mod_torch <- deepregression(
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch")
 
-mod_torch %>% fit(epochs = 50)
+mod_torch %>% fit(epochs = 100)
 
 mod %>% plot()
 points(data$xa,
@@ -79,6 +79,8 @@ mu_inputs_list <- list(deep_model_data,
 
 plot(mod %>% fitted(),
      mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
+cor(mod %>% fitted(),
+     as.array(mod_torch$model()[[1]][[1]]$forward(mu_inputs_list)))
 
 
 #now with validation and callback
