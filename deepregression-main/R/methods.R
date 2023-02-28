@@ -282,10 +282,20 @@ fit.deepregression <- function(
   args <- list(...)
 
   input_x <- prepare_data(object$init_params$parsed_formulas_content, 
-                          gamdata = object$init_params$gamdata$data_trafos)
+                          gamdata = object$init_params$gamdata$data_trafos, 
+                          engine = object$engine)
   input_y <- as.matrix(object$init_params$y)
   
-  if(!is.null(validation_data))
+  if(object$engine == "torch"){
+    input_dataloader <- prepare_data_luz_dataloader(object = object,
+                                                    input_x = input_x,
+                                                    target = input_y)
+    dataloader_model <- dataloader(dataset = input_dataloader,
+                              batch_size = batch_size, shuffle = F)
+    #prepare_validation also
+    }
+  
+  if(!is.null(validation_data)){
     validation_data <- 
     list(
       x = prepare_newdata(object$init_params$parsed_formulas_content, 
@@ -293,6 +303,7 @@ fit.deepregression <- function(
                           gamdata = object$init_params$gamdata$data_trafos),
       y = object$init_params$prepare_y_valdata(validation_data[[2]])
     )
+  }
 
   if(length(object$init_params$image_var)>0){
     
@@ -309,9 +320,9 @@ fit.deepregression <- function(
       callbacks = callbacks,
       ...
     )
-
-  }else{
+  }
     
+  if(object$engine == 'tf'){
     input_list_model <-
       list(object = object$model,
            epochs = epochs,
@@ -321,17 +332,39 @@ fit.deepregression <- function(
            callbacks = callbacks,
            verbose = verbose,
            view_metrics = ifelse(view_metrics, getOption("keras.view_metrics", default = "auto"), FALSE)
+      )}
+  
+  if(object$engine == 'torch'){
+      input_list_model <-
+        list(object = object$model,
+             epochs = epochs
+             #batch_size = batch_size # already in dataloader
+             #validation_split = validation_split,
+             #validation_data = validation_data,
+             #callbacks = callbacks,
+             #verbose = verbose,
+             #view_metrics = ifelse(view_metrics, getOption("keras.view_metrics", default = "auto"), FALSE)
+        )} 
+  
+  if(object$engine == 'tf'){
+      input_list_model <- c(input_list_model,
+                          list(x = input_x, y = input_y)
+                          )
+    }
+    
+if(object$engine == 'torch'){
+      input_list_model <- c(dataloader_model,
+                            input_list_model
       )
+      }
     
-    input_list_model <- c(input_list_model,
-                          list(x = input_x,
-                               y = input_y
-                          ))
-    
+  if(object$engine == 'tf'){
     args <- append(args,
                    input_list_model[!names(input_list_model) %in%
                                       names(args)])
-    
+  }
+  if(object$engine == "torch"){
+    args <- input_list_model
   }
 
   ret <- suppressWarnings(do.call(object$fit_fun, args))
