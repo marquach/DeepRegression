@@ -4,7 +4,7 @@
 #' @param newdata list in the same format as the original data
 #' @return list of matrices or arrays
 #' 
-loop_through_pfc_and_call_trafo <- function(pfc, newdata = NULL)
+loop_through_pfc_and_call_trafo <- function(pfc, newdata = NULL, engine)
 {
   
   data_list <- list()
@@ -15,7 +15,7 @@ loop_through_pfc_and_call_trafo <- function(pfc, newdata = NULL)
     for(j in 1:length(pfc[[i]])){
       
       # skip those which are already set up by the gamdata
-      if(!is.null(pfc[[i]][[j]]$gamdata_nr))
+      if(!is.null(pfc[[i]][[j]]$gamdata_nr) & engine == 'tf')
         if(!pfc[[i]][[j]]$gamdata_combined) next
       
       if(is.null(newdata)){
@@ -40,11 +40,11 @@ loop_through_pfc_and_call_trafo <- function(pfc, newdata = NULL)
 #' @return list of matrices or arrays
 #' @export
 #' 
-prepare_data <- function(pfc, gamdata = NULL)
+prepare_data <- function(pfc, gamdata = NULL, engine = 'tf')
 {
   
-  ret_list <- loop_through_pfc_and_call_trafo(pfc = pfc, newdata = NULL)
-  if(!is.null(gamdata))
+  ret_list <- loop_through_pfc_and_call_trafo(pfc = pfc, newdata = NULL, engine)
+  if(!is.null(gamdata) & engine == 'tf')
     ret_list <- c(prepare_gamdata(gamdata), ret_list)
   
   return(ret_list)
