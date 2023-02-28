@@ -341,3 +341,30 @@ from_dist_to_loss_torch <- function(family, weights = NULL){
   negloglik
   }
   
+
+
+prepare_data_luz_dataloader <- function(object, input_x, target){
+  
+  distr_datasets_length <- sapply(
+    1:length(object$init_params$additive_predictors),
+    function(x) length(object$init_params$additive_predictors[[x]])
+    )
+  
+  sequence_length <- seq_len(sum(distr_datasets_length))
+  
+  distr_datasets_index <- lapply(distr_datasets_length, function(x){
+    index <- sequence_length[seq_len(x)]
+    sequence_length <<- sequence_length[-seq_len(x)]
+    index
+  })
+  
+  input_x <- lapply(input_x, torch_tensor)
+  
+  df_list <- lapply(distr_datasets_index, function(x){ input_x[x] })
+  
+  get_luz_dataset(df_list = df_list, target = torch_tensor(target))
+
+    
+}
+
+
