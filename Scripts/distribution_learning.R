@@ -15,7 +15,7 @@ data = data.frame(matrix(rnorm(4*n), c(n,4)))
 colnames(data) <- c("x1","x2","x3","xa")
 y <- rnorm(n) + data$xa^2 + data$x1
 
-deep_model <- function(x) x %>%
+deep_model_tf <- function(x) x %>%
   layer_dense(units = 32, activation = "relu", use_bias = FALSE) %>%
   layer_dropout(rate = 0.2) %>%
   layer_dense(units = 8, activation = "relu") %>%
@@ -29,7 +29,7 @@ debugonce(deepregression)
 mod <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
   data = data, y = y,orthog_options = orthog_options,
-  list_of_deep_models = list(deep_model = deep_model), engine = "tf"
+  list_of_deep_models = list(deep_model = deep_model_tf), engine = "tf"
 )
 
 if(!is.null(mod)){
@@ -40,7 +40,7 @@ if(!is.null(mod)){
 source('Scripts/deepregression_functions.R')
 # Für subnetwork_init_torch und sollen später in passendes Skript verschoben werden
 # So muss deep_model bei torch ansatz angegeben werden, da kein Input vorhanden ist
-deep_model <- function() nn_sequential(
+deep_model_torch <- function() nn_sequential(
   nn_linear(in_features = 3, out_features = 32, bias = F),
   nn_relu(),
   nn_dropout(p = 0.2),
@@ -49,14 +49,20 @@ deep_model <- function() nn_sequential(
   nn_linear(in_features = 8, out_features = 1)
 )
 
-debugonce(deepregression)
+#debugonce(deepregression)
 mod_torch <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1), 
-  list_of_deep_models = list(deep_model = deep_model),
+  list_of_deep_models = list(deep_model = deep_model_torch),
   data = data, y = y, orthog_options = orthog_options, return_prepoc = F, 
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch")
 
+mod_torch %>% fit(epochs = 50)
+
+mod %>% plot()
+points(data$xa,
+       torch_matmul(mod_torch$init_params$parsed_formulas_contents$loc[[2]]$data_trafo(),
+                 mod_torch$model()[[1]][[1]]$parameters[6]$sub$t()), col="red")
 
 deep_model_data <- mod$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
 gam_data <- mod$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
@@ -66,16 +72,14 @@ deep_model_data <- torch_tensor(as.matrix(as.data.frame(deep_model_data)))
 lin_data <- torch_tensor(lin_data)
 gam_data <- torch_tensor(gam_data)
 int_data <- torch_tensor(int_data)
-
 mu_inputs_list <- list(deep_model_data,
                        gam_data,
                        lin_data,
                        int_data)
-sigma_inputs_list <- list(int_data)
-test_list <- list(mu_inputs_list, sigma_inputs_list)
 
-luz_dataset <- get_luz_dataset(df_list = test_list,
-                               target  = torch_tensor(y))
+plot(mod %>% fitted(),
+     mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
+
 
 #now with validation and callback
 train_ids <- sample(1:dim(data)[1], size = 0.8 * dim(data)[1])
@@ -86,29 +90,3 @@ valid_ds <- dataset_subset(luz_dataset, indices = valid_ids)
 
 train_dl <- dataloader(train_ds, batch_size = 32)
 valid_dl <- dataloader(valid_ds, batch_size = 32)
-
-mod_torch <- deepregression(
-  list_of_formulas = list(loc = formula, scale = ~ 1), 
-  list_of_deep_models = list(deep_model = deep_model),
-  data = data, y = y, orthog_options = orthog_options, return_prepoc = F, 
-  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
-  engine = "torch")
-
-fit_done <- mod_torch$model %>% 
-  luz::fit(train_dl, epochs = 100, valid_data = valid_dl,
-           luz_callback_early_stopping(patience = 5))
-
-plot(mod %>% fitted(),
-     mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
-
-mod %>% plot()
-points(data$xa,
-       torch_matmul(gam_data,
-                 mod_torch$model()[[1]][[1]]$parameters[6]$sub$t()), col="red")
-
-
-
-
-
-
-
