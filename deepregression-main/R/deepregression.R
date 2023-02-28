@@ -340,24 +340,27 @@ deepregression <- function(
                   image_var = image_var,
                   prepare_y_valdata = function(x) as.matrix(x)
                 ),
-              fit_fun = fitting_function)}
+              fit_fun = fitting_function,
+              engine = engine)}
   if(engine == "torch"){
     ret <- list(
-      model = model,
-                init_params =
-                  list(
-                    list_of_formulas = list_of_formulas,
-                    gamdata = so$gamdata,
-                    additive_predictors = additive_predictors,
-                    parsed_formulas_contents = parsed_formulas_contents,
-                    y = y,
-                    ellipsis = list(...),
-                    family = family,
-                    penalty_options = penalty_options,
-                    orthog_options = orthog_options,
-                    image_var = image_var,
-                    prepare_y_valdata = function(x) as.matrix(x)
-                  ))
+    model = model,
+              init_params =
+                list(
+                  list_of_formulas = list_of_formulas,
+                  gamdata = so$gamdata,
+                  additive_predictors = additive_predictors,
+                  parsed_formulas_contents = parsed_formulas_contents,
+                  y = y,
+                  ellipsis = list(...),
+                  family = family,
+                  penalty_options = penalty_options,
+                  orthog_options = orthog_options,
+                  image_var = image_var,
+                  prepare_y_valdata = function(x) as.matrix(x)
+                ),
+    fit_fun = luz::fit,
+    engine = engine)
   }
   class(ret) <- "deepregression"
 
