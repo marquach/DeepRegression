@@ -57,7 +57,7 @@ mod_torch <- deepregression(
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch")
 
-mod_torch %>% fit(epochs = 100)
+mod_torch %>% fit(epochs = 100, early_stopping = T)
 
 mod %>% plot()
 points(data$xa,
