@@ -270,7 +270,7 @@ fit.deepregression <- function(
     weighthistory <- WeightHistory$new()
     callbacks <- append(callbacks, weighthistory)
   }
-  if(early_stopping & length(callbacks)==0)
+  if(early_stopping & length(callbacks)==0 & object$engine == "tf")
     callbacks <- append(callbacks,
                         list(callback_terminate_on_naan(),
                              callback_early_stopping(patience = patience,
@@ -287,12 +287,27 @@ fit.deepregression <- function(
   input_y <- as.matrix(object$init_params$y)
   
   if(object$engine == "torch"){
+    #perpare stuff for inside here with functions
+    # create callbacks
+    train_ids <- sample(1:length(input_y), 
+                        size = (1-validation_split) * length(input_y))
+    valid_ids <- sample(setdiff(1:length(input_y), train_ids),
+                        size = validation_split * length(input_y))
+    
     input_dataloader <- prepare_data_luz_dataloader(object = object,
                                                     input_x = input_x,
                                                     target = input_y)
-    dataloader_model <- dataloader(dataset = input_dataloader,
-                              batch_size = batch_size, shuffle = F)
-    #prepare_validation also
+    
+    train_ds <- dataset_subset(input_dataloader, indices = train_ids)
+    valid_ds <- dataset_subset(input_dataloader, indices = valid_ids)
+    
+    train_dl <- dataloader(train_ds, batch_size = batch_size)
+    valid_dl <- dataloader(valid_ds, batch_size = batch_size)
+    
+    if(early_stopping) callbacks <- append(
+      luz::luz_callback_early_stopping(patience = patience),
+                              callbacks)
+    
     }
   
   if(!is.null(validation_data)){
@@ -337,7 +352,10 @@ fit.deepregression <- function(
   if(object$engine == 'torch'){
       input_list_model <-
         list(object = object$model,
-             epochs = epochs
+             epochs = epochs,
+             data = train_dl,
+             valid_data = valid_dl,
+             callbacks = callbacks
              #batch_size = batch_size # already in dataloader
              #validation_split = validation_split,
              #validation_data = validation_data,
@@ -352,10 +370,8 @@ fit.deepregression <- function(
                           )
     }
     
-if(object$engine == 'torch'){
-      input_list_model <- c(dataloader_model,
-                            input_list_model
-      )
+if(object$engine == 'torch') {
+  input_list_model <- c(input_list_model)
       }
     
   if(object$engine == 'tf'){
