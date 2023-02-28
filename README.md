@@ -16,8 +16,8 @@ represent feature effects that already exist in the structured predictor.
 
 Some things still need some dedication:
 
-  - There is no summary of the model yet, which is comparable to the Keras summary 
-    - it looks like there is also no really summary in python itself [(Link)](https://github.com/TylerYep/torchinfo)
+  - There is now a summary of the model, but not comparable to the Keras summary 
+    - nice template [(Link)](https://github.com/TylerYep/torchinfo)
   - Also, there are no generic fit(), predict(), plot() and coef() for the torch model
     - Doable but not needed for the proof-of-concept
 
