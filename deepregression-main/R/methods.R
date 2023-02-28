@@ -400,7 +400,13 @@ print.deepregression <- function(
   ...
 )
 {
-  print(x$model)
+  suppressWarnings(
+    if(grepl("luz", attr(x$model, "class"))){
+    model_summary <- lapply(seq_len(length(x$init_params$additive_predictors)),
+           function(y) x$model()[[1]][[y]][[1]])
+    names(model_summary) <- names(x$init_params$additive_predictors)
+    print(model_summary)
+  } else print(x$model))
   fae <- x$init_params$list_of_formulas
   cat("Model formulas:\n---------------\n")
   invisible(sapply(1:length(fae), function(i){ cat(names(fae)[i],":\n"); print(fae[[i]])}))
