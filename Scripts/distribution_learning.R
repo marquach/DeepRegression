@@ -81,14 +81,3 @@ plot(mod %>% fitted(),
      mod_torch$model()[[1]][[1]]$forward(mu_inputs_list))
 cor(mod %>% fitted(),
      as.array(mod_torch$model()[[1]][[1]]$forward(mu_inputs_list)))
-
-
-#now with validation and callback
-train_ids <- sample(1:dim(data)[1], size = 0.8 * dim(data)[1])
-valid_ids <- sample(setdiff(1:dim(data)[1], train_ids), size = 0.2 * dim(data)[1])
-
-train_ds <- dataset_subset(luz_dataset, indices = train_ids)
-valid_ds <- dataset_subset(luz_dataset, indices = valid_ids)
-
-train_dl <- dataloader(train_ds, batch_size = 32)
-valid_dl <- dataloader(valid_ds, batch_size = 32)
