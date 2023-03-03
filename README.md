@@ -18,9 +18,8 @@ Some things still need some dedication:
 
   - There is now a summary of the model, but not comparable to the Keras summary 
     - nice template [(Link)](https://github.com/TylerYep/torchinfo)
-  - Also, there are no generic fit(), predict(), plot() and coef() for the torch model
-    - Doable but not needed for the proof-of-concept
-    - fit() done
+  - Also, there is no generic predict(), plot() and coef() for the torch model
+    - Doable, as shown with fit(), but not needed for the proof-of-concept
 
 # Installation
 
