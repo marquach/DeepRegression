@@ -367,4 +367,12 @@ prepare_data_luz_dataloader <- function(object, input_x, target){
     
 }
 
-
+# till now only orthog_options will be test
+check_input_torch <- function(orthog_options){
+  if(orthog_options$orthogonalize != FALSE) stop("Orthogonalization not implemented for torch")
+}
+  
+  
+  
+  
+  
