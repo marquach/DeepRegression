@@ -136,6 +136,9 @@ deepregression <- function(
     message("Tensorflow not available. Use install_tensorflow().")
     invisible(return(NULL))
   }
+  if(engine == "torch"){
+    check_input_torch(orthog_options)
+  }
   
   # convert data.frame to list
   if(is.data.frame(data)){
