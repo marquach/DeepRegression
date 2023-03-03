@@ -92,8 +92,8 @@ gam_torch <- deepregression(
 gam_torch$model <- gam_torch$model  %>% set_opt_hparams(lr = 0.1)
 gam_tf$model$optimizer$lr <- tf$Variable(0.1, name = "learning_rate")
 
-gam_torch %>% fit(epochs = 4000, early_stopping = T)
-gam_tf %>% fit(epochs = 4000, early_stopping = T)
+gam_torch %>% fit(epochs = 4000, early_stopping = F)
+gam_tf %>% fit(epochs = 4000, early_stopping = F)
 # Interesting (does not converge when validation_loss is used as early_stopping)
 
 mean((mcycle$accel - fitted(gam_mgcv) )^2)
@@ -119,7 +119,6 @@ mean(
 lines(mcycle$times, gam_torch$model()[[1]][[1]]$forward(mu_inputs_list),
       col = "blue")
 
-gam_tf %>% fit(epochs = 2000, early_stopping = F, validation_split = 0)
 
 plot(mcycle$times, mcycle$accel)
 lines(mcycle$times, gam_mgcv %>% fitted(), col = "red")
@@ -139,7 +138,7 @@ n <- 1000
 data = data.frame(matrix(rnorm(4*n), c(n,4)))
 colnames(data) <- c("x1","x2","x3","xa")
 
-formula <- ~ -1 + deep_model(x1,x2,x3)
+formula_deep <- ~ -1 + deep_model(x1,x2,x3)
 
 nn_tf <- function(x) x %>%
   layer_dense(units = 32, activation = "relu", use_bias = FALSE) %>%
@@ -154,7 +153,7 @@ nn_torch <- function() nn_sequential(
 y <- rnorm(n) + data$xa^2 + data$x1
 
 deep_model_tf <- deepregression(
-  list_of_formulas = list(loc = formula, scale = ~ 1),
+  list_of_formulas = list(loc = formula_deep, scale = ~ 1),
   data = data, y = y,orthog_options = orthog_options,
   list_of_deep_models = list(deep_model = nn_tf), engine = "tf"
 )
@@ -170,8 +169,8 @@ deep_model_torch <- deepregression(
 deep_model_tf$model
 deep_model_torch
 
-deep_model_tf %>% fit(epochs = 1000, early_stopping = T)
-deep_model_torch %>% fit(epochs = 1000, early_stopping = T)
+deep_model_tf %>% fit(epochs = 1000, early_stopping = F)
+deep_model_torch %>% fit(epochs = 1000, early_stopping = F)
 
 
 deep_data <- deep_model_torch$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
@@ -188,18 +187,17 @@ cor(deep_model_tf %>% fitted(),
 
 # structured model (intercept + linear + additve part)
 
-formula <- ~ 1  + s(xa) + x1
+formula_structured <- ~ 1  + s(xa) + x1
 
 structured_tf <- deepregression(
-  list_of_formulas = list(loc = formula, scale = ~ 1),
+  list_of_formulas = list(loc = formula_structured, scale = ~ 1),
   data = data, y = y,orthog_options = orthog_options,
-  list_of_deep_models = list(deep_model = nn_tf), engine = "tf"
+  engine = "tf"
 )
 
 structured_torch <- deepregression(
-  list_of_formulas = list(loc = formula, scale = ~ 1),
+  list_of_formulas = list(loc = formula_structured, scale = ~ 1),
   data = data, y = y, orthog_options = orthog_options,
-  list_of_deep_models = list(deep_model = nn_torch),
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch"
 )
@@ -211,8 +209,8 @@ structured_torch
 structured_torch$model <- structured_torch$model  %>% set_opt_hparams(lr = 0.1)
 structured_tf$model$optimizer$lr <- tf$Variable(0.1, name = "learning_rate")
 
-structured_tf %>% fit(epochs = 1000, early_stopping = T, batch_size = 32)
-structured_torch %>% fit(epochs = 1000, early_stopping = T, batch_size = 32)
+structured_tf %>% fit(epochs = 1000, early_stopping = F, batch_size = 32)
+structured_torch %>% fit(epochs = 1000, early_stopping = F, batch_size = 32)
 structured_gam <- gam(y ~ 1 + s(xa) + x1, data = data)
 
 mean((y - structured_gam %>% fitted())^2)
@@ -235,7 +233,7 @@ fitted_gam <- structured_gam %>% fitted()
 fitted_torch <- as.array(structured_torch$model()[[1]][[1]]$forward(mu_inputs_list))
 fitted_tf <- structured_tf %>% fitted()
 
-fitted_structured <- data.frame("gamlss" = fitted_gam,
+fitted_structured <- data.frame("gam" = fitted_gam,
                                 "torch" = fitted_torch,
                                 "tf" = fitted_tf)
 round(cor(fitted_structured),3)
@@ -245,7 +243,7 @@ plot(structured_tf %>% fitted(),
      xlab = "tensorflow", ylab = "torch")
 plot(fitted_gam,
      fitted_torch,
-     xlab = "gamlss", ylab = "torch")
+     xlab = "gam", ylab = "torch")
 
 cbind( 
   "gam" = c(coef(structured_gam)[3:11],coef(structured_gam)[1:2]) ,
@@ -258,7 +256,7 @@ points(data$xa, as.array(mu_inputs_list[[1]]) %*%
          as.array(structured_tf$model$variables[[1]]), col = "green")
 points(data$xa, 
        as.array(structured_torch$model()[[1]][[1]][[1]][[1]]$forward(
-         mu_inputs_list[[1]])), col = "red")
+         mu_inputs_list[[1]])), col = "black")
 
 
 
