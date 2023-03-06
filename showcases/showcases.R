@@ -5,7 +5,7 @@ library(mgcv) # just used to fit gam model
 library(ggplot2)
 library(gamlss)
 devtools::load_all("deepregression-main/")
-source('Scripts/deepregression_functions.R')
+source('scripts/deepregression_functions.R')
 
 # Up to this moment (02.27.2023), the torch implementation is only able to handle
 # deepregression models which are build without the orthogonalizion.
