@@ -14,7 +14,7 @@ Up to this time-point (02.27.2023) only the following processors/layers:
 - $\texttt{linear-layer}$
 - $\texttt{gam-layer}$
 
-are implemented for the $\textt{torch}$ approach.
+are implemented for the $\texttt{torch}$ approach.
 
 Also the orthogonalization is not implemented. The orthogonalization ensures identifiability of the structured term(s). Simply put, the orthogonalization constrains the deep network such that its latent learned features cannot
 represent feature effects that already exist in the structured predictor.
