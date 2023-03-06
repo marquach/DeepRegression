@@ -7,7 +7,7 @@ The project is a proof-of-concept. It shows that torch can be used as well as te
 deepregression’s core functionality is to define and fit (deep) distributional regression models. 
 
 As this is just a proof-of-concept, not all functionalities are implemented.
-Most of the "translated" functions will be adapted and improved in the further processes.
+Most of the $\texttt{tensorflow} \Rightarrow \texttt{torch}$  *translated* functions will be adapted and improved in the further processes.
 Up to this time-point (02.27.2023) only the following processors/layers:
 
 - $\texttt{intercept-layer}$
@@ -26,7 +26,7 @@ represent feature effects that already exist in the structured predictor.
 `scripts\Comprehension_scripts` contains the scripts that were used to get in touch with: 
 
  - with the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package 
- - the deep learning language  [$\textit{torch}$](https://cran.r-project.org/web/packages/torch/) and also the high-level API [luz](https://cran.r-project.org/web/packages/luz/)
+ - the deep learning language  [torch](https://cran.r-project.org/web/packages/torch/) and also the high-level API [luz](https://cran.r-project.org/web/packages/luz/)
  - distribution learning
  
  `scripts\milestones_presentation` contains the scripts that were used to do some (1.-4.) of [suggested steps](https://docs.google.com/presentation/d/12HXZZBmmlvctInJTBOdDjULu1Eur97WB7ucGwSFCMaA/mobilepresent?slide=id.g188f35a056e_0_35). 
