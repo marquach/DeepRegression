@@ -21,12 +21,12 @@ represent feature effects that already exist in the structured predictor.
 
 # Stucture
 
-`scripts` contains all of the scripts, which were created in the process of the project. 
+`scripts` contains all of the scripts, which were created in the process of the project.
 
 `scripts\Comprehension_scripts` contains the scripts that were used to get in touch with: 
 
  - with the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package 
- - the [deep learning language $\texttt{torch}$](https://cran.r-project.org/web/packages/torch/) and also the high-level API [$\texttt{luz}$](https://cran.r-project.org/web/packages/luz/)
+ - the deep learning language  [$\textit{torch}$](https://cran.r-project.org/web/packages/torch/) and also the high-level API [luz](https://cran.r-project.org/web/packages/luz/)
  - distribution learning
  
  `scripts\milestones_presentation` contains the scripts that were used to do some (1.-4.) of [suggested steps](https://docs.google.com/presentation/d/12HXZZBmmlvctInJTBOdDjULu1Eur97WB7ucGwSFCMaA/mobilepresent?slide=id.g188f35a056e_0_35). 
