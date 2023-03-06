@@ -3,7 +3,7 @@
 
 This [project](https://docs.google.com/presentation/d/12HXZZBmmlvctInJTBOdDjULu1Eur97WB7ucGwSFCMaA/mobilepresent?slide=id.p) was part of the Winter 2022/23 course Applied Deep Learning with TensorFlow and Pytorch at the LMU Munich, supervised by [Dr. David Rügamer](https://www.slds.stat.uni-muenchen.de/people/ruegamer/) and [Chris Kolb](https://www.slds.stat.uni-muenchen.de/people/kolb/).
 
-The project is a proof-of-concept. It shows that torch can be used as well as tensorflow to build and fit a deepregression model from the [deepregression](https://github.com/davidruegamer/deepregression) package.
+The project is a proof-of-concept. It shows that torch can be used as well as tensorflow to build and fit a deepregression model from the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package.
 deepregression’s core functionality is to define and fit (deep) distributional regression models. 
 
 As this is just a proof-of-concept, not all functionalities are implemented.
@@ -25,15 +25,15 @@ represent feature effects that already exist in the structured predictor.
 
 `scripts\Comprehension_scripts` contains the scripts that were used to get in touch with: 
 
- - with the [deepregression](https://github.com/davidruegamer/deepregression) package 
- - the deep learning language [$\texttt{torch}$](https://cran.r-project.org/web/packages/torch/) and also the high-level API [$\texttt{luz}$](https://cran.r-project.org/web/packages/luz/)
+ - with the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package 
+ - the [deep learning language $\texttt{torch}$](https://cran.r-project.org/web/packages/torch/) and also the high-level API [$\texttt{luz}$](https://cran.r-project.org/web/packages/luz/)
  - distribution learning
  
  `scripts\milestones_presentation` contains the scripts that were used to do some (1.-4.) of [suggested steps](https://docs.google.com/presentation/d/12HXZZBmmlvctInJTBOdDjULu1Eur97WB7ucGwSFCMaA/mobilepresent?slide=id.g188f35a056e_0_35). 
 
 
 `scripts\deepregression_functions.R` contains the $\texttt{tensorflow} \Rightarrow \texttt{torch}$  *translated* deepregression functions, which were needed to get the proof-of-concept work. 
-Most of these functions were named like the ones from the [deepregression](https://github.com/davidruegamer/deepregression) package, but a `_torch` was added to the name.
+Most of these functions were named like the ones from the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package, but a `_torch` was added to the name.
 
 Also some showcases (`showcases`) and tests (`tests`) were included to check whether the implementation works.
 
