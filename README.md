@@ -55,7 +55,7 @@ All of them were build and fitted by deepregression with both engines  $\texttt{
 
 To install the package, use the following command:
 ``` r
-devtools::install_github("marquach/deepregression")
+devtools::install_github("marquach/deepregression/deepregression-main")
 ```
 Note that the installation requires additional packages (see below) and their installation is currently forced by `deepregression`.
 
