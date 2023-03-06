@@ -3,7 +3,7 @@
 
 This [project](https://docs.google.com/presentation/d/12HXZZBmmlvctInJTBOdDjULu1Eur97WB7ucGwSFCMaA/mobilepresent?slide=id.p) was part of the Winter 2022/23 course Applied Deep Learning with TensorFlow and Pytorch at the LMU Munich, supervised by [Dr. David Rügamer](https://www.slds.stat.uni-muenchen.de/people/ruegamer/) and [Chris Kolb](https://www.slds.stat.uni-muenchen.de/people/kolb/).
 
-The project is a proof-of-concept. It shows that torch can be used as well as tensorflow to build and fit a deepregression model from the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package.
+The project is a proof-of-concept. It shows that $\texttt{torch}$ can be used as well as $\texttt{tensorflow}$ to build and fit a deepregression model from the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package.
 deepregression’s core functionality is to define and fit (deep) distributional regression models. 
 
 As this is just a proof-of-concept, not all functionalities are implemented.
@@ -57,7 +57,7 @@ To install the package, use the following command:
 ``` r
 devtools::install_github("marquach/deepregression/deepregression-main")
 ```
-Note that the installation requires additional packages (see below) and their installation is currently forced by `deepregression`.
+Note that the installation requires additional packages (see below).
 
 # Requirements
 
