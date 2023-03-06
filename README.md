@@ -6,21 +6,28 @@ This project was part of the Winter 2022/23 course Applied Deep Learning with Te
 The project is a proof-of-concept. It shows that torch can be used as well as tensorflow to build and fit a deepregression model from the [deepregression](https://github.com/davidruegamer/deepregression) package.
 deepregression’s core functionality is to define and fit (deep) distributional regression models. 
 
-As this is just a proof-of-concept not all functionalities are already implemented.
-Up to this time-point (02.27.2023) only the processors for the intercept-layer, linear-layer and the gam-layer are implemented for the torch approach.
-Also the orthogonalization is not implemented. The orthogonalization ensures identifiability of the structured term(s). 
-Simply put, the orthogonalization constrains the deep network such that its latent learned features cannot
+As this is just a proof-of-concept, not all functionalities are implemented.
+Most of the "translated" functions will be adapted and improved in the further processes.
+Up to this time-point (02.27.2023) only the following processors:
+
+- the intercept-layer
+- linear-layer 
+- gam-layer 
+
+are implemented for the torch approach.
+
+Also the orthogonalization is not implemented. The orthogonalization ensures identifiability of the structured term(s). Simply put, the orthogonalization constrains the deep network such that its latent learned features cannot
 represent feature effects that already exist in the structured predictor.
 
 # Also to mention
 
-Some things still need some dedication:
+## Some things still need some dedication:
 
   - There is now a summary of the model, but not comparable to the Keras summary 
     - nice template [(Link)](https://github.com/TylerYep/torchinfo)
   - Also, there is no generic predict(), plot() and coef() for the torch model
     - Doable, as shown with fit(), but not needed for the proof-of-concept
-
+    
 # Installation
 
 To install the package, use the following command:
@@ -39,6 +46,16 @@ The requirements are given in the `DESCRIPTION`. If you load the package manuall
   - torch
   - luz
 
+# Outlook:
+
+  - implement torch-based alternatives to existing functions
+    - implement remaining layers/processors
+    - generic functions like plot, coef, predict, ...
+  - paste functions from *deepregression_functions.R* to correct place
+  - create more tests and showcases
+    - compare performance of both deepregression versions (torch \& tensorflow)
+
+
 # Related literature
 
 The following works are based on the ideas implemented in this package:
@@ -53,19 +70,6 @@ The following works are based on the ideas implemented in this package:
 
 Many thanks to following people for helpful comments, issues, suggestions for improvements and discussions: 
 
-* Andreas Bender
-* Christina Bukas
-* Oliver Duerr
-* Patrick Kaiser
-* Nadja Klein
-* Philipp Kopper
-* Christian Mueller
-* Julian Raith
-* Fabian Scheipl
-* Matthias Schmid
-* Max Schneider
-* Ruolin Shen
-* Almond Stoecker
-* Dominik Thalmeier
-* Viet Tran
-* Kang Yang
+* Dr. David Rügamer
+* Chris Kolb
+* Nora Valiente Bauer
