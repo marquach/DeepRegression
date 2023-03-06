@@ -14,7 +14,7 @@ Up to this time-point (02.27.2023) only the following processors/layers:
 - $\texttt{linear-layer}$
 - $\texttt{gam-layer}$
 
-are implemented for the \textt{torch} approach.
+are implemented for the $\textt{torch}$ approach.
 
 Also the orthogonalization is not implemented. The orthogonalization ensures identifiability of the structured term(s). Simply put, the orthogonalization constrains the deep network such that its latent learned features cannot
 represent feature effects that already exist in the structured predictor.
@@ -46,7 +46,7 @@ All of them were build and fitted by deepregression with both engines  $\texttt{
   - implement torch-based alternatives to existing functions
     - implement remaining layers/processors
     - generic functions like plot, coef, predict, ...
-  - paste functions from *deepregression_functions.R* to correct place
+  - paste functions from `deepregression_functions.R` to correct place
   - create more tests and showcases
     - compare performance of both deepregression versions ($\texttt{tensorflow}$ & $\texttt{torch}$)
 
