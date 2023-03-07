@@ -288,8 +288,8 @@ semi_structured_torch <- deepregression(
 semi_structured_tf$model
 semi_structured_torch
 
-semi_structured_tf %>% fit(epochs = 4000, early_stopping = T, batch_size = 32)
-semi_structured_torch %>% fit(epochs = 4000, early_stopping = T, batch_size = 32)
+semi_structured_tf %>% fit(epochs = 200, early_stopping = F, batch_size = 32)
+semi_structured_torch %>% fit(epochs = 200, early_stopping = F, batch_size = 32)
 
 deep_model_data <- semi_structured_torch$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
 gam_data <- semi_structured_torch$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
@@ -314,6 +314,6 @@ cor(semi_structured_tf %>% fitted(),
       semi_structured_torch$model()[[1]][[1]]$forward(mu_inputs_list)))
 
 cbind(
-  unlist(semi_structured_tf %>% coef()),
-  unlist(lapply(semi_structured_torch$model()$parameters[4:6], 
+  "tf" = unlist(semi_structured_tf %>% coef()),
+ "torch" = unlist(lapply(semi_structured_torch$model()$parameters[4:6], 
                 function(x) t(as.array(x)))))
