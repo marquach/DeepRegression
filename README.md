@@ -51,7 +51,7 @@ All of them were build and fitted by deepregression with both engines  $\texttt{
     - compare performance of both deepregression versions ($\texttt{tensorflow}$ & $\texttt{torch}$)
 
     
-# Installation
+# Installation (does not work because private)
 
 To install the package, use the following command:
 ``` r

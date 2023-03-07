@@ -45,7 +45,10 @@ cbind(
                intercept_only_gamlss$sigma.coefficients),
   'torch' = lapply(intercept_only_torch$model()[[1]]$parameters, as.array))
 
-# Now with linear term but without intercept
+# Now with linear term but without intercept for both distribution parameters
+# The model is now correct specified, 
+# as y <- yrnorm(...,mean = 0*x, sd = exp(beta1*x))
+
 toy_gamlss <- gamlss(formula = y ~ -1+x,
        sigma.formula = ~ -1 + x, family = NO)
 
@@ -122,6 +125,9 @@ lines(mcycle$times, gam_torch$model()[[1]][[1]]$forward(mu_inputs_list),
 
 plot(mcycle$times, mcycle$accel)
 lines(mcycle$times, gam_mgcv %>% fitted(), col = "red")
+# Tensorflow needs more epochs to converge tp gam solution
+# also validation_split has to be set to 0
+gam_tf %>% fit(epochs = 2000, validation_split = 0)
 lines(mcycle$times, gam_tf %>% fitted(), col = "green")
 lines(mcycle$times, gam_torch$model()[[1]][[1]]$forward(mu_inputs_list),
       col = "blue")
@@ -159,7 +165,7 @@ deep_model_tf <- deepregression(
 )
 
 deep_model_torch <- deepregression(
-  list_of_formulas = list(loc = formula, scale = ~ 1),
+  list_of_formulas = list(loc = formula_deep, scale = ~ 1),
   data = data, y = y, orthog_options = orthog_options,
   list_of_deep_models = list(deep_model = nn_torch),
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
@@ -282,8 +288,8 @@ semi_structured_torch <- deepregression(
 semi_structured_tf$model
 semi_structured_torch
 
-semi_structured_tf %>% fit(epochs = 1000, early_stopping = T, batch_size = 32)
-semi_structured_torch %>% fit(epochs = 1000, early_stopping = T, batch_size = 32)
+semi_structured_tf %>% fit(epochs = 4000, early_stopping = T, batch_size = 32)
+semi_structured_torch %>% fit(epochs = 4000, early_stopping = T, batch_size = 32)
 
 deep_model_data <- semi_structured_torch$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
 gam_data <- semi_structured_torch$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
