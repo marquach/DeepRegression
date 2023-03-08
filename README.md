@@ -1,35 +1,28 @@
 
-# deepregression Torch (Proof-of-Concept)
+# deepregression Torch (Masterthesis)
+## Content (will adapted next week, just to put some stuff inside)
 
-This [project](https://docs.google.com/presentation/d/12HXZZBmmlvctInJTBOdDjULu1Eur97WB7ucGwSFCMaA/mobilepresent?slide=id.p) was part of the Winter 2022/23 course Applied Deep Learning with TensorFlow and Pytorch at the LMU Munich, supervised by [Dr. David Rügamer](https://www.slds.stat.uni-muenchen.de/people/ruegamer/) and [Chris Kolb](https://www.slds.stat.uni-muenchen.de/people/kolb/).
+By combining additive models and neural networks, it becomes possible to expand the scope of statistical regression and extend deep learning-based approaches using interpretable structured additive predictors. The content of this thesis is the implementation of semi-structured regression, a general framework that allows the combination of many different structured additive models and deep neural networks, using the R-native deep learning language torch. Using existing functionalities in the TensorFlow-based software R package deepregression as a blueprint, this thesis will implement torch-based alternatives to existing functions that, e.g., allow to 
 
-The project is a proof-of-concept. It shows that $\texttt{torch}$ can be used as well as $\texttt{tensorflow}$ to build and fit a deepregression model from the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package.
-deepregression’s core functionality is to define and fit (deep) distributional regression models. 
+- extract estimated coefficients of linear predictors;
+- plot estimated non-linear functions;
+- predict on unseen data;
+- perform cross-validation;
+- specify a variety of different distribution for distribution learning;
+- compute deep ensembles of semi-structured regression models;
+- specify models for and learn with multi-modal data sets (e.g., image data combined with tabular data).
 
-As this is just a proof-of-concept, not all functionalities are implemented.
-Most of the $\texttt{tensorflow} \Rightarrow \texttt{torch}$  *translated* functions will be adapted and improved in the further processes.
-Up to this time-point (02.27.2023) only the following processors/layers:
+The thesis will demonstrate the efficacy of this framework and compare it to existing software implementation deepregression through numerical experiments, while also highlighting its special merits in a real-world application on the airbnb dataset. 
 
-- $\texttt{intercept-layer}$
-- $\texttt{linear-layer}$
-- $\texttt{gam-layer}$
-
-are implemented for the $\texttt{torch}$ approach.
-
-Also the orthogonalization is not implemented. The orthogonalization ensures identifiability of the structured term(s). Simply put, the orthogonalization constrains the deep network such that its latent learned features cannot
-represent feature effects that already exist in the structured predictor.
 
 # Stucture
 
-`scripts` contains all of the scripts, which were created in the process of the project.
+`scripts` contains all of the scripts, which were created in the process of the masterthesis.
 
 `scripts\Comprehension_scripts` contains the scripts that were used to get in touch with: 
 
- - with the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package 
- - the deep learning language  [torch](https://cran.r-project.org/web/packages/torch/) and also the high-level API [luz](https://cran.r-project.org/web/packages/luz/)
- - distribution learning
  
- `scripts\milestones_presentation` contains the scripts that were used to do some (1.-4.) of [suggested steps](https://docs.google.com/presentation/d/12HXZZBmmlvctInJTBOdDjULu1Eur97WB7ucGwSFCMaA/mobilepresent?slide=id.g188f35a056e_0_35). 
+ `scripts\milestones_presentation` lorem ipsum
 
 
 `scripts\deepregression_functions.R` contains the $\texttt{tensorflow} \Rightarrow \texttt{torch}$  *translated* deepregression functions, which were needed to get the proof-of-concept work. 
@@ -39,18 +32,8 @@ Also some showcases (`showcases`) and tests (`tests`) were included to check whe
 
 An intercept-only, a linear model, an additive model, a structured model (combination of all mentioned before), a deep model and a semi-structured model were used as examples. 
 
-All of them were build and fitted by deepregression with both engines  $\texttt{tensorflow}$ & $\texttt{torch}$ . The first three models and their combination were also build and fitted with [gamlss](https://www.gamlss.com) or with [mgcv](https://cran.r-project.org/web/packages/mgcv/index.html), as the remaining ones can't be covered by [gamlss](https://www.gamlss.com) or by [mgcv](https://cran.r-project.org/web/packages/mgcv/index.html).
-
 # Outlook:
 
-  - implement torch-based alternatives to existing functions
-    - implement remaining layers/processors
-    - generic functions like plot, coef, predict, ...
-  - paste functions from `deepregression_functions.R` to correct place
-  - create more tests and showcases
-    - compare performance of both deepregression versions ($\texttt{tensorflow}$ & $\texttt{torch}$)
-
-    
 # Installation (does not work because private)
 
 To install the package, use the following command:
