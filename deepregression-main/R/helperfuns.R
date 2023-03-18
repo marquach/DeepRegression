@@ -28,10 +28,13 @@ NCOL0 <- function(x)
   return(NCOL(x))
 }
 
-get_mod_names <- function(x)
+get_mod_names <- function(x, param_nr = NULL)
 {
-  
-  sapply(x$model$layers,"[[","name")
+  if(x$engine == "tf")  return(sapply(x$model$layers,"[[","name"))
+  if(x$engine == "torch") {
+    amount_param <- length(x$model()[[1]][[param_nr]]$parameters)
+    rev(rev(names(x$model()[[1]][[param_nr]][[1]]$modules))[seq_len(amount_param)])
+    }
   
 }
 
@@ -41,11 +44,19 @@ get_mod_names <- function(x)
 #' @param name character
 #' @param partial_match logical; whether to also check for a partial match
 #' @export
-get_weight_by_opname <- function(mod, name, partial_match = FALSE)
+get_weight_by_opname <- function(mod, name, partial_match = FALSE, 
+                                 param_nr = NULL)
 {
-  
+  if(mod$engine == "tf"){
   lay <- get_layer_by_opname(mod, name, partial_match = partial_match)
   wgts <- lay$weights
+  }
+  if(mod$engine == "torch"){
+    lay <- get_layer_by_opname(mod, name, partial_match = partial_match,
+                               param_nr = param_nr)
+    wgts <- as.array(lay$t())
+  }
+  
   if(is.list(wgts) & length(wgts)==1)
     return(as.matrix(wgts[[1]]))
   return(wgts)
@@ -58,14 +69,19 @@ get_weight_by_opname <- function(mod, name, partial_match = FALSE)
 #' @param name character
 #' @param partial_match logical; whether to also check for a partial match
 #' @export
-get_layer_by_opname <- function(mod, name, partial_match = FALSE)
+get_layer_by_opname <- function(mod, name, partial_match = FALSE,
+                                param_nr = NULL)
 {
   
   # names <- get_mod_names(mod)
-  w <- get_layernr_by_opname(mod, name, partial_match = partial_match)
+  w <- get_layernr_by_opname(mod, name, partial_match = partial_match,
+                             param_nr = param_nr)
   if(length(w)==0)
     stop("Cannot find specified ", name, " in model weights.")
-  return(mod$model$layers[[w]])
+  if(mod$engine == "tf") return(mod$model$layers[[w]])
+  if(mod$engine == "torch") return(
+    mod$model()[[1]][[param_nr]]$parameters[[w]])
+  
   
 }
 
@@ -93,10 +109,11 @@ get_layernr_trainable <- function(mod, logic = FALSE)
 #' @param name character
 #' @param partial_match logical; whether to also check for a partial match
 #' @export
-get_layernr_by_opname <- function(mod, name, partial_match = FALSE)
+get_layernr_by_opname <- function(mod, name, partial_match = FALSE,
+                                  param_nr = NULL)
 {
   
-  names <- get_mod_names(mod)
+  names <- get_mod_names(mod, param_nr = param_nr)
   if(partial_match){
     w <- grep(name, names)
     if(length(w)>1){
