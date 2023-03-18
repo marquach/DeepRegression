@@ -77,7 +77,10 @@ model_torch <-  function(submodules_list){
       subnetworks <- lapply(1:length(self[[1]]), function(x){
         self[[1]][[x]](dataset_list[[x]])
       })
-      Reduce(f = "+", x = subnetworks)}
+      
+      Reduce(f = "+", x = subnetworks)
+      #torch_sum(torch_stack(subnetworks), dim = 1)
+      }
   )}
 
 
@@ -297,7 +300,8 @@ from_distfun_to_dist_torch <- function(dist_fun, preds){
       
       self$distr_parameters <- nn_module_list(
         lapply(preds, function(x) x()))
-      names(self$distr_parameters$.__enclos_env__$private$modules_) <- names(preds)
+      names(self$distr_parameters$.__enclos_env__$private$modules_) <- 
+        names(preds)
     },
     
     forward = function(dataset_list) {
@@ -485,11 +489,11 @@ from_dist_to_loss_torch <- function(family, weights = NULL){
 # Ordering of data is different between torch and tensorflow approach, because
 # gaminputs are handled seperate in tensorflow.
 # This leads to the fact that prepare_data() can't be used directly
-prepare_data_luz_dataloader <- function(object, input_x, target){
+prepare_data_torch <- function(pfc, input_x, target = NULL){
   
   distr_datasets_length <- sapply(
-    1:length(object$init_params$additive_predictors),
-    function(x) length(object$init_params$additive_predictors[[x]])
+    1:length(pfc),
+    function(x) length(pfc[[x]])
     )
   
   sequence_length <- seq_len(sum(distr_datasets_length))
@@ -502,6 +506,9 @@ prepare_data_luz_dataloader <- function(object, input_x, target){
   
   input_x <- lapply(input_x, torch_tensor)
   df_list <- lapply(distr_datasets_index, function(x){ input_x[x] })
+  
+  if(is.null(target)) return(df_list)
+  
   get_luz_dataset(df_list = df_list, target = torch_tensor(target))
 
     
@@ -515,6 +522,89 @@ check_input_torch <- function(orthog_options){
 }
   
   
+get_weights_torch <- function(model){
+  old_weights <- lapply(model$model()$parameters, function(x) as_array(x))
+  lapply(old_weights, function(x) torch_tensor(x))
+}
+# prepare_input_list_model()
+
+prepare_input_list_model <- function(input_x, input_y,
+                                     object, epochs = 10, batch_size = 32,
+                                     validation_split, validation_data = NULL,
+                                     callbacks = NULL, verbose, view_metrics, 
+                                     early_stopping){
   
+  if(object$engine == "torch"){
+    input_dataloader <- prepare_data_torch(
+      pfc  = object$init_params$parsed_formulas_content,
+      input_x = input_x,
+      target = input_y)
+    
+    #no validation
+    if(is.null(validation_data) & identical(validation_split, 0)){
+      train_dl <- dataloader(input_dataloader, batch_size = batch_size)
+      valid_dl <- NULL
+    }
+    
+    if(!is.null(validation_data)){
+      train_dl <- dataloader(input_dataloader, batch_size = batch_size)
+      
+      validation_dataloader <- prepare_data_torch(
+        pfc  = object$init_params$parsed_formulas_content,
+        input_x = validation_data[[1]],
+        target = validation_data[[2]])
+      
+      valid_dl <- dataloader(validation_dataloader, batch_size = batch_size)
+    }
+    
+    if(!identical(validation_split, 0) & !is.null(validation_split)){
+      train_ids <- sample(1:length(input_y), 
+                          size = (1-validation_split) * length(input_y))
+      valid_ids <- sample(setdiff(1:length(input_y), train_ids),
+                          size = validation_split * length(input_y))
+      
+      train_ds <- dataset_subset(input_dataloader, indices = train_ids)
+      valid_ds <- dataset_subset(input_dataloader, indices = valid_ids)
+      
+      train_dl <- dataloader(train_ds, batch_size = batch_size)
+      valid_dl <- dataloader(valid_ds, batch_size = batch_size)
+    }
+    
+    if(!is.null(valid_dl)) valid_data <- valid_dl
+    if(is.null(valid_dl)) valid_data <- NULL
+    
+    input_list_model <- list(
+      object = object$model,
+      epochs = epochs,
+      data = train_dl,
+      valid_data = valid_data,
+      callbacks = callbacks)
+    
+    #if(view_metrics) stop("Only possible in tf approach. Use luz callbacks instead")
+    #if(verbose) stop("Only possible in tf approach. Use luz callbacks instead")
+    
+    return(c(input_list_model))
+  }
   
+  if(object$engine == 'tf'){
+    input_list_model <-
+      list(object = object$model,
+           epochs = epochs,
+           batch_size = batch_size,
+           validation_split = validation_split,
+           validation_data = validation_data,
+           callbacks = callbacks,
+           verbose = verbose,
+           view_metrics = ifelse(view_metrics, getOption("keras.view_metrics", default = "auto"), FALSE)
+      )
+    
+      input_list_model <- c(input_list_model,
+                            list(x = input_x, y = input_y)
+                            )
+    
+      input_list_model}
+    }
+
+
+
   
