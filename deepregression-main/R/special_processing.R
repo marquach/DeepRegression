@@ -285,17 +285,6 @@ lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
     without_layer = nn_identity
   }
   
-  
-  layer <- layer_generator(term = term, 
-                           output_dim = output_dim, 
-                           param_nr = param_nr, 
-                           controls = controls, engine = engine,
-                           layer_class = layer_class,
-                           without_layer = without_layer)
-  
-  if(grepl("lin(.*)", term)) term <- paste(extractvar(term, allow_ia = TRUE),
-                                           collapse = " + ")
-  
   data_trafo <- function(indata = data)
   {
     if(attr(terms.formula(as.formula(paste0("~", term))), "intercept")==0){
@@ -306,6 +295,24 @@ lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
                    data = indata)[,-1,drop=FALSE]
     }
   }
+  
+  if(engine == "torch") units <- as.integer(ncol(data_trafo()))
+  if(engine == "tf") units <- as.integer(output_dim)
+
+  
+  
+  layer <- layer_generator(term = term, 
+                           output_dim = output_dim, 
+                           param_nr = param_nr, 
+                           controls = controls, engine = engine,
+                           layer_class = layer_class,
+                           without_layer = without_layer,
+                           units = units)
+  
+  if(grepl("lin(.*)", term)) term <- paste(extractvar(term, allow_ia = TRUE),
+                                           collapse = " + ")
+  
+  
   
   list(
     data_trafo = function() data_trafo(),
