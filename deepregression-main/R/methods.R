@@ -175,8 +175,11 @@ predict.deepregression <- function(
   ...
 ){
   # Setup defaults 
-  if(object$engine == "tf") apply_fun = tfd_mean
-
+  if(is.null(apply_fun)) {
+    if(object$engine == "tf") apply_fun = tfd_mean
+    if(object$engine == "torch") apply_fun = function(x) x$mean
+    
+  }
   # image case
   if(length(object$init_params$image_var)>0 | !is.null(batch_size)){
     
@@ -218,9 +221,6 @@ predict.deepregression <- function(
     }
   }
   
-  if(is.null(apply_fun)){
-    return(convert_fun(yhat$mean))
-  }
   if(!is.null(apply_fun))
     return(convert_fun(apply_fun(yhat))) else
       return(convert_fun(yhat)) # CM: which case is this?
@@ -626,7 +626,7 @@ mean.deepregression <- function(
   ...
 )
 {
-  predict.deepregression(x, newdata = data, apply_fun = tfd_mean, ...)
+  predict.deepregression(x, newdata = data, ...)
 }
 
 
@@ -685,9 +685,14 @@ quant.deepregression <- function(
   ...
 )
 {
+  
+  if(x$engine == 'tf') apply_fun = function(x) tfd_quantile(x, value=probs)
+  if(x$engine == 'torch') apply_fun = function(x) x$icdf(value = probs)
+  
+  
   predict.deepregression(x,
                          newdata = data,
-                         apply_fun = function(x) tfd_quantile(x, value=probs),
+                         apply_fun = apply_fun,
                          ...)
 }
 
@@ -706,14 +711,29 @@ get_distribution <- function(
 )
 {
   if(is.null(data)){
-    disthat <- x$model(prepare_data(x$init_params$parsed_formulas_content, 
-                                    gamdata = x$init_params$gamdata$data_trafos))
+    model_input <- prepare_data(x$init_params$parsed_formulas_content, 
+                                gamdata = x$init_params$gamdata$data_trafos,
+                                engine = x$engine)
+    if(x$engine == "torch"){
+      model_input <- 
+          prepare_data_torch(x$init_params$parsed_formulas_contents,
+                             input_x = model_input)
+        x$model <- x$model()
+    }
+    disthat <- x$model(model_input)
   }else{
     # preprocess data
     if(is.data.frame(data)) data <- as.list(data)
     newdata_processed <- prepare_newdata(x$init_params$parsed_formulas_content, 
-                                         data, 
-                                         gamdata = x$init_params$gamdata$data_trafos)
+                                         newdata = data, 
+                                         gamdata = x$init_params$gamdata$data_trafos,
+                                         engine = x$engine)
+    if(x$engine == "torch"){
+      newdata_processed <- 
+        prepare_data_torch(x$init_params$parsed_formulas_contents,
+                           input_x = newdata_processed)
+      x$model <- x$model()
+    }
     disthat <- x$model(newdata_processed)
   }
   return(disthat)
