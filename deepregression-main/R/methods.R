@@ -626,6 +626,7 @@ mean.deepregression <- function(
   ...
 )
 {
+  
   predict.deepregression(x, newdata = data, ...)
 }
 
@@ -655,7 +656,11 @@ stddev.deepregression <- function(
   ...
 )
 {
-  predict.deepregression(x, newdata = data, apply_fun = tfd_stddev, ...)
+  
+  if(x$engine == "tf") apply_fun = tfd_mean
+  if(x$engine == "torch") apply_fun = function(x) x$stddev
+  
+  predict.deepregression(x, newdata = data, apply_fun = apply_fun, ...)
 }
 
 #' Generic quantile function
@@ -754,16 +759,34 @@ log_score <- function(
   x,
   data=NULL,
   this_y=NULL,
-  ind_fun = function(x) tfd_independent(x),
+  ind_fun = NULL,
   convert_fun = as.matrix,
   summary_fun = function(x) x
 )
 {
 
+  if(x$engine == "tf") {
+    ind_fun <- function(x) tfd_independent(x)
+    log_prob <- function(x, value) tfd_log_prob(x, value)
+    }
+  if(x$engine == "torch") {
+    ind_fun <- function(x) x
+    log_prob <- function(x, value) x$log_prob(value)
+    summary_fun <- rowSums
+    }
+  
+  
+  
   if(is.null(data)){
     
     this_data <- prepare_data(x$init_params$parsed_formulas_content, 
-                              gamdata = x$init_params$gamdata$data_trafos)
+                              gamdata = x$init_params$gamdata$data_trafos,
+                              engine = x$engine)
+    if(x$engine == "torch"){
+      this_data <- prepare_data_torch(pfc = x$init_params$parsed_formulas_content,
+                         input_x = this_data)
+      x$model <- x$model()
+    }
   
   }else{
     
@@ -786,7 +809,7 @@ log_score <- function(
   }
   
   return(summary_fun(convert_fun(
-    disthat %>% ind_fun() %>% tfd_log_prob(this_y)
+    disthat %>% ind_fun() %>% log_prob(this_y)
   )))
 }
 
