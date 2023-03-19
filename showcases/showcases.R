@@ -42,7 +42,8 @@ intercept_only_gamlss <- gamlss(formula = y ~ 1,
 cbind(
   'gamlss' = c(intercept_only_gamlss$mu.coefficients,
                intercept_only_gamlss$sigma.coefficients),
-  'torch' = lapply(intercept_only_torch$model()[[1]]$parameters, as.array))
+  'torch' = c(unlist(intercept_only_torch %>% coef(which_param = 1)),
+              unlist(intercept_only_torch %>% coef(which_param = 2))))
 
 # Now with linear term but without intercept for both distribution parameters
 # The model is now correct specified, 
@@ -67,7 +68,8 @@ summary(toy_gamlss)
 
 cbind(
   'gamlss' = c(toy_gamlss$mu.coefficients, toy_gamlss$sigma.coefficients),
-  'torch' = lapply(mod_torch$model()[[1]]$parameters, as.array),
+  'torch' = c(unlist(mod_torch %>% coef(which_param = 1)),
+              unlist(mod_torch %>% coef(which_param = 2))),
   "true" = c(0,2))
 # torch even closer to true parameters
 
@@ -95,8 +97,8 @@ gam_torch <- deepregression(
 gam_torch$model <- gam_torch$model  %>% set_opt_hparams(lr = 0.1)
 gam_tf$model$optimizer$lr <- tf$Variable(0.1, name = "learning_rate")
 
-gam_torch %>% fit(epochs = 500, early_stopping = F, validation_split = 0)
-gam_tf %>% fit(epochs = 500, early_stopping = F, validation_split = 0)
+gam_torch %>% fit(epochs = 2000, early_stopping = F, validation_split = 0)
+gam_tf %>% fit(epochs = 2000, early_stopping = F, validation_split = 0)
 # Interesting (does not converge when validation_loss is used as early_stopping)
 
 mean((mcycle$accel - fitted(gam_mgcv) )^2)
@@ -112,27 +114,17 @@ lines(mcycle$times, gam_tf %>% fitted(), col = "green")
 lines(mcycle$times, gam_torch %>% fitted(),
       col = "blue")
 
-
-plot(mcycle$times, mcycle$accel)
-lines(mcycle$times, gam_mgcv %>% fitted(), col = "red")
-# Tensorflow needs more epochs to converge tp gam solution
-# also validation_split has to be set to 0
-gam_tf %>% fit(epochs = 2000, validation_split = 0)
-lines(mcycle$times, gam_tf %>% fitted(), col = "green")
-lines(mcycle$times, gam_torch$model()[[1]][[1]]$forward(mu_inputs_list),
-      col = "blue")
-
 cbind( 
   "gam" = c(coef(gam_mgcv)[2:10],coef(gam_mgcv)[1]) ,
   "tf" = unlist(gam_tf %>% coef()),
-  "torch" = unlist(lapply(gam_torch$model()$parameters[1:2],
-                          function(x) t(as.array(x)))))
+  "torch" = unlist(gam_torch %>% coef()))
 
 # showcase from the deepregression (intro) presentation
 set.seed(42)
 n <- 1000
 data = data.frame(matrix(rnorm(4*n), c(n,4)))
 colnames(data) <- c("x1","x2","x3","xa")
+y <- rnorm(n) + data$xa^2 + data$x1
 
 formula_deep <- ~ -1 + deep_model(x1,x2,x3)
 
@@ -146,7 +138,7 @@ nn_torch <- function() nn_sequential(
   nn_linear(in_features = 32, out_features = 1)
 )
 
-y <- rnorm(n) + data$xa^2 + data$x1
+
 
 deep_model_tf <- deepregression(
   list_of_formulas = list(loc = formula_deep, scale = ~ 1),
@@ -169,17 +161,11 @@ deep_model_tf %>% fit(epochs = 1000, early_stopping = F)
 deep_model_torch %>% fit(epochs = 1000, early_stopping = F)
 
 
-deep_data <- deep_model_torch$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
-deep_data <- torch_tensor(as.matrix(as.data.frame(deep_data)))
-mu_inputs_list <- list(deep_data)
-
 plot(deep_model_tf %>% fitted(),
-     deep_model_torch$model()[[1]][[1]]$forward(mu_inputs_list),
+     deep_model_torch %>% fitted(),
      xlab = "tensorflow", ylab = "torch")
 cor(deep_model_tf %>% fitted(),
-    as.array(
-      deep_model_torch$model()[[1]][[1]]$forward(mu_inputs_list)))
-
+    deep_model_torch %>% fitted())
 
 # structured model (intercept + linear + additve part)
 
@@ -210,23 +196,11 @@ structured_torch %>% fit(epochs = 1000, early_stopping = F, batch_size = 32)
 structured_gam <- gam(y ~ 1 + s(xa) + x1, data = data)
 
 mean((y - structured_gam %>% fitted())^2)
-
-gam_data <- structured_torch$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
-lin_data <- structured_torch$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
-int_data <- structured_torch$init_params$parsed_formulas_contents$loc[[3]]$data_trafo()
-lin_data <- torch_tensor(lin_data)
-gam_data <- torch_tensor(gam_data)
-int_data <- torch_tensor(int_data)
-
-mu_inputs_list <- list(gam_data,
-                       lin_data,
-                       int_data)
-
 mean((y - structured_tf %>% fitted())^2)
-mean((y - as.array(structured_torch$model()[[1]][[1]]$forward(mu_inputs_list)))^2)
+mean((y - structured_torch %>% fitted())^2)
 
 fitted_gam <- structured_gam %>% fitted()
-fitted_torch <- as.array(structured_torch$model()[[1]][[1]]$forward(mu_inputs_list))
+fitted_torch <- structured_torch %>% fitted()
 fitted_tf <- structured_tf %>% fitted()
 
 fitted_structured <- data.frame("gam" = fitted_gam,
@@ -234,8 +208,8 @@ fitted_structured <- data.frame("gam" = fitted_gam,
                                 "tf" = fitted_tf)
 round(cor(fitted_structured),3)
 
-plot(structured_tf %>% fitted(),
-     structured_torch$model()[[1]][[1]]$forward(mu_inputs_list),
+plot(fitted_tf,
+     fitted_torch,
      xlab = "tensorflow", ylab = "torch")
 plot(fitted_gam,
      fitted_torch,
@@ -244,17 +218,13 @@ plot(fitted_gam,
 cbind( 
   "gam" = c(coef(structured_gam)[3:11],coef(structured_gam)[1:2]) ,
   "tf" = unlist(structured_tf %>% coef()),
-  "torch" = unlist(lapply(structured_torch$model()$parameters[1:3],
-                function(x) t(as.array(x)))))
+  "torch" = unlist(structured_torch %>% coef()))
 
+par(mfrow = c(1, 3))
 plot(structured_gam)
-points(data$xa, as.array(mu_inputs_list[[1]]) %*%
-         as.array(structured_tf$model$variables[[1]]), col = "green")
-points(data$xa, 
-       as.array(structured_torch$model()[[1]][[1]][[1]][[1]]$forward(
-         mu_inputs_list[[1]])), col = "black")
-
-
+plot(structured_tf)
+plot(structured_torch)
+par(mfrow = c(1, 1))
 
 # showcase from the deepregression documentation
 
@@ -279,9 +249,14 @@ semi_structured_tf
 semi_structured_torch
 
 semi_structured_tf %>% fit(epochs = 100, early_stopping = F, batch_size = 32)
-semi_structured_torch_fitted <- 
-  semi_structured_torch %>% fit(epochs = 100,
-                                early_stopping = F, batch_size = 32)
+semi_structured_torch %>% fit(epochs = 100,
+                              early_stopping = F, batch_size = 32)
+
+# Check generics
+
+
+
+
 semi_structured_torch_fitted <- 
   semi_structured_torch %>% fit(epochs = 100,
                                 early_stopping = F, batch_size = 32,
