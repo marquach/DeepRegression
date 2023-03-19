@@ -4,10 +4,10 @@
 
 By combining additive models and neural networks, it becomes possible to expand the scope of statistical regression and extend deep learning-based approaches using interpretable structured additive predictors. The content of this thesis is the implementation of semi-structured regression, a general framework that allows the combination of many different structured additive models and deep neural networks, using the R-native deep learning language torch. Using existing functionalities in the TensorFlow-based software R package deepregression as a blueprint, this thesis will implement torch-based alternatives to existing functions that, e.g., allow to 
 
-- extract estimated coefficients of linear predictors;
-- plot estimated non-linear functions;
-- predict on unseen data;
-- perform cross-validation;
+- extract estimated coefficients of linear predictors; (DONE)
+- plot estimated non-linear functions; (DONE)
+- predict on unseen data; (DONE)
+- perform cross-validation; (DONE)
 - specify a variety of different distribution for distribution learning;
 - compute deep ensembles of semi-structured regression models;
 - specify models for and learn with multi-modal data sets (e.g., image data combined with tabular data).
