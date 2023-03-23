@@ -25,9 +25,12 @@ simplyconnected_layer_torch <- function(la = la,
             self$sc <- sc
           },
   
+  # muss angepasst werden
+  # wenn self$sc mehrere sind muss es transponiert werden
   forward = function(dataset_list)
-    torch_multiply(self$sc, dataset_list)$view(
-      c(length(dataset_list), length(self$sc))))
+    torch_multiply(self$sc$view(c(1, length(self$sc))),
+                   dataset_list)$view(
+      c(dataset_list$size()[1], length(self$sc))))
 }
 
 
@@ -166,14 +169,28 @@ lasso_test <- deepregression(y = matrix(y), list_of_formulas = list(
   orthog_options = orthog_control(orthogonalize = F)
 )
 
-lasso_test
-debugonce(fit)
 lasso_test %>% fit(epochs = 500, early_stopping = F)
 round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[1:2])))
 round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[3:4])))
 round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[5:6])))
 round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[7:8])))
 round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[9:10])))
+
+lasso_test <- deepregression(y = matrix(y), list_of_formulas = list(
+  loc = ~ -1 + lasso(x1,x2) + lasso(x3) + lasso(x4) + lasso(x5),
+  scale = ~ 1), data = x, engine = "torch",
+  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
+  orthog_options = orthog_control(orthogonalize = F)
+)
+lasso_test
+lasso_test %>% fit(epochs = 500, early_stopping = F)
+
+torch_multiply(
+  lasso_test$model()$parameters[1:2][[1]],
+  lasso_test$model()$parameters[1:2][[2]])
+round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[3:4])))
+round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[5:6])))
+round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[7:8])))
 
 
 
