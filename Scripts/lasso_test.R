@@ -160,14 +160,20 @@ round(as.array(Reduce(f = "prod", test_model()$parameters[9:10])))
 debugonce(deepregression)
 colnames(x) <- paste("x", 1:5, sep = "")
 lasso_test <- deepregression(y = matrix(y), list_of_formulas = list(
-  loc = ~ -1 + lasso(x1) + lasso(x2),
+  loc = ~ -1 + lasso(x1) + lasso(x2) + lasso(x3) + lasso(x4) + lasso(x5),
   scale = ~ 1), data = x, engine = "torch",
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   orthog_options = orthog_control(orthogonalize = F)
 )
+
 lasso_test
-
-
+debugonce(fit)
+lasso_test %>% fit(epochs = 500, early_stopping = F)
+round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[1:2])))
+round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[3:4])))
+round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[5:6])))
+round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[7:8])))
+round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[9:10])))
 
 
 
