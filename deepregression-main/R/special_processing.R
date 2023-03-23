@@ -365,23 +365,45 @@ gam_processor <- function(term, data, output_dim, param_nr, controls, engine){
 }
 
 
-l1_processor <- function(term, data, output_dim, param_nr, controls){
+l1_processor <- function(term, data, output_dim, param_nr, controls, engine){
   # l1 (Tib)
   lambda = controls$sp_scale(data) * as.numeric(extractval(term, "la"))
+  if(engine == "tf") {
+    layer_class = tib_layer
+    without_layer = function(x, ...) 
+      return(simplyconnected_layer(
+        la = lambda,
+        name = makelayername(term, param_nr),
+        ...
+      )(x))
+    further_layer_args <- list(la = lambda)
+    layer_args_names <- c("name", "units", "la")
+  }
+  
+  data_trafo <- function() data[extractvar(term)]
+  
+  if(engine == "torch") {
+    layer_class = tib_layer_torch
+    without_layer = function(x, ...) 
+      return(simplyconnected_layer_torch(
+        la = lambda,
+        name = makelayername(term, param_nr),
+        ...
+      )(x))
+    further_layer_args <- list(la = lambda, input_shape = length(data_trafo()))
+    layer_args_names <- c("input_shape", "units", "la")
+  }
+  
   
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
                            param_nr = param_nr, 
                            controls = controls,
-                           further_layer_args = list(la = lambda),
-                           layer_args_names = c("name", "units", "la"),
-                           layer_class = tib_layer,
-                           without_layer = function(x, ...) 
-                             return(simplyconnected_layer(
-                               la = lambda,
-                               name = makelayername(term, param_nr),
-                               ...
-                             )(x))
+                           further_layer_args = further_layer_args,
+                           layer_args_names = layer_args_names,
+                           engine = engine,
+                           layer_class = layer_class,
+                           without_layer = without_layer
   )
 
   penalty <- if(output_dim > 1){
@@ -391,7 +413,7 @@ l1_processor <- function(term, data, output_dim, param_nr, controls){
   }
   
   list(
-    data_trafo = function() data[extractvar(term)],
+    data_trafo = data_trafo,
     predict_trafo = function(newdata) newdata[extractvar(term)],
     input_dim = as.integer(extractlen(term, data)),
     layer = layer,
