@@ -1,3 +1,67 @@
+simplyconnected_layer_torch <- function(la = la,
+                                        multfac_initializer = torch_ones,
+                                        input_shape){
+  nn_module(
+    classname = "simply_con",
+    
+    initialize = function(){
+      self$la <- torch_tensor(la)
+      self$multfac_initializer <- multfac_initializer
+      
+      sc <- nn_parameter(x = self$multfac_initializer(input_shape))
+      
+      sc$register_hook(function(grad){
+        grad + la * 2 *sc$sum()
+      })
+      self$sc <- sc
+    },
+    
+    # muss angepasst werden
+    # wenn self$sc mehrere sind muss es transponiert werden
+    forward = function(dataset_list)
+      torch_multiply(self$sc$view(c(1, length(self$sc))),
+                     dataset_list)$view(
+                       c(dataset_list$size()[1], length(self$sc))))
+}
+
+
+tiblinlasso_layer_torch <- function(la, input_shape = 1, units = 1){
+  
+  la <- torch_tensor(la)
+  tiblinlasso_layer <- nn_linear(in_features = input_shape,
+                                 out_features = units, bias = F)
+  
+  tiblinlasso_layer$parameters$weight$register_hook(function(grad){
+    grad + la*2*tiblinlasso_layer$parameters$weight$sum()
+  })
+  tiblinlasso_layer
+}
+
+tib_layer_torch <-
+  nn_module(
+    classname = "TibLinearLasso_torch",
+    initialize = function(units, la, input_shape, multfac_initializer = torch_ones){
+      self$units = units
+      self$la = la
+      self$multfac_initializer = multfac_initializer
+      
+      self$fc <- tiblinlasso_layer_torch(la = self$la,
+                                         input_shape = input_shape,
+                                         units = self$units)
+      self$sc <- simplyconnected_layer_torch(la = self$la,
+                                             input_shape = input_shape,
+                                             multfac_initializer = 
+                                               self$multfac_initializer)()
+      
+    },
+    forward = function(data_list){
+      self$fc(self$sc(data_list))
+    }
+  )
+
+
+
+
 #' Function to define a torch layer similar to a tf dense layer
 #' 
 #' @param units integer; number of output units
@@ -578,7 +642,8 @@ prepare_input_list_model <- function(input_x, input_y,
       epochs = epochs,
       data = train_dl,
       valid_data = valid_data,
-      callbacks = callbacks)
+      callbacks = callbacks,
+      verbose = verbose)
     
     #if(view_metrics) stop("Only possible in tf approach. Use luz callbacks instead")
     #if(verbose) stop("Only possible in tf approach. Use luz callbacks instead")
