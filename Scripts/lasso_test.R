@@ -104,7 +104,7 @@ tib_layer_torch()()
 
 tib_x2 <- TibLinearLasso_torch(units = 1, la = 0.1, input_shape = 1)
 
-tib_x1x2 <- TibLinearLasso_torch(units = 1, la = 0.1, input_shape = 2); tib_x1x2
+tib_x1x2 <- tib_layer_torch(units = 1, la = 0.1, input_shape = 2); tib_x1x2
 
 tib_x3 <- TibLinearLasso_torch(units = 1, la = 0.1, input_shape = 1)
 tib_x4 <- TibLinearLasso_torch(units = 1, la = 0.1, input_shape = 1)
@@ -169,7 +169,7 @@ lasso_test <- deepregression(y = matrix(y), list_of_formulas = list(
   orthog_options = orthog_control(orthogonalize = F)
 )
 
-lasso_test %>% fit(epochs = 500, early_stopping = F)
+lasso_test %>% fit(epochs = 120, early_stopping = F)
 round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[1:2])))
 round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[3:4])))
 round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[5:6])))
@@ -183,7 +183,7 @@ lasso_test <- deepregression(y = matrix(y), list_of_formulas = list(
   orthog_options = orthog_control(orthogonalize = F)
 )
 lasso_test
-lasso_test %>% fit(epochs = 500, early_stopping = F)
+lasso_test %>% fit(epochs = 150, early_stopping = T)
 
 torch_multiply(
   lasso_test$model()$parameters[1:2][[1]],
