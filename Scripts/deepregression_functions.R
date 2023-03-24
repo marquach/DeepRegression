@@ -25,11 +25,15 @@ simplyconnected_layer_torch <- function(la = la,
 }
 
 
-tiblinlasso_layer_torch <- function(la, input_shape = 1, units = 1){
+tiblinlasso_layer_torch <- function(la, input_shape = 1, units = 1,
+                                    kernel_initializer = "trunc_normal"){
   
   la <- torch_tensor(la)
   tiblinlasso_layer <- nn_linear(in_features = input_shape,
                                  out_features = units, bias = F)
+  if (kernel_initializer == "glorot_uniform") {
+    nn_init_trunc_normal_(tiblinlasso_layer$weight)
+  }
   
   tiblinlasso_layer$parameters$weight$register_hook(function(grad){
     grad + la*2*tiblinlasso_layer$parameters$weight$sum()
@@ -163,6 +167,7 @@ get_luz_dataset <- dataset(
   },
   
   .getitem = function(index) {
+    
     indexes <- lapply(self$df_list,
                       function(x) lapply(x, function(x) x[index,]))
     
