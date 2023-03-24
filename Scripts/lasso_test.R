@@ -1,114 +1,13 @@
 # simplyconnected_layer_torch Verstehen
 library(torch)
 source("scripts/deepregression_functions.R")
+devtools::load_all("deepregression-main/")
 # Tib linear lasso
 
 # benutz Kombitation aus Layern
 # simply connected mit l2 loss 
 # und dense layer ebenfalls l2 loss
 
-simplyconnected_layer_torch <- function(la = la,
-                                        multfac_initializer = torch_ones,
-                                        input_shape){
-  nn_module(
-  classname = "simply_con",
-  
-  initialize = function(){
-            self$la <- torch_tensor(la)
-            self$multfac_initializer <- multfac_initializer
-            
-            sc <- nn_parameter(x = self$multfac_initializer(input_shape))
-            
-            sc$register_hook(function(grad){
-              grad + la * 2 *sc$sum()
-            })
-            self$sc <- sc
-          },
-  
-  # muss angepasst werden
-  # wenn self$sc mehrere sind muss es transponiert werden
-  forward = function(dataset_list)
-    torch_multiply(self$sc$view(c(1, length(self$sc))),
-                   dataset_list)$view(
-      c(dataset_list$size()[1], length(self$sc))))
-}
-
-
-tiblinlasso_layer_torch <- function(la, input_shape = 1, units = 1){
-  
-  la <- torch_tensor(la)
-  tiblinlasso_layer <- nn_linear(in_features = input_shape,
-                                 out_features = units, bias = F)
-  
-  tiblinlasso_layer$parameters$weight$register_hook(function(grad){
-    grad + la*2*tiblinlasso_layer$parameters$weight$sum()
-  })
-  tiblinlasso_layer
-}
-
-tib_layer_torch <-
-  nn_module(
-  classname = "TibLinearLasso_torch",
-  initialize = function(units, la, input_shape, multfac_initializer = torch_ones){
-    self$units = units
-    self$la = la
-    self$multfac_initializer = multfac_initializer
-    
-    self$fc <- tiblinlasso_layer_torch(la = self$la,
-                                       input_shape = input_shape,
-                                       units = self$units)
-    self$sc <- simplyconnected_layer_torch(la = self$la,
-                                            input_shape = input_shape,
-                                            multfac_initializer = 
-                                              self$multfac_initializer)()
-    
-  },
-  forward = function(data_list){
-    self$fc(self$sc(data_list))
-  }
-)
-
-
-tibx1 <- tib_layer_torch(units = 1, la = 0.1, input_shape = 1)
-tibx1$debug("initialize")
-tibx1()
-tib_layer_torch()()
-#simply_connected_layer_torch <- function(la, multfac_initializer = torch_ones, 
-#                                         input_shape){
-#  
-#  la <- torch_tensor(la)
-#  sc_layer <- nn_parameter(x = multfac_initializer(input_shape))
-#  
-#  sc_layer$register_hook(function(grad){
-#    grad + la * 2 *sc_layer$sum()
-#  })
-#  sc_layer
-#}
-
-
-
-
-#simplyconnected_layer_module <- 
-#  nn_module(
-#    classname = "simply_connected_module_torch",
-#    initialize = function(la, multfac_initializer, input_shape){
-#      self$sc <- simply_connected_layer_torch(la = la,multfac_initializer = multfac_initializer,
-#                                              input_shape = input_shape)
-#    },
-#    forward = function(dataset_list)
-#      torch_multiply(self$sc, dataset_list)$view(
-#        c(length(dataset_list), length(self$sc)))
-#  )
-
-
-
-tib_x2 <- TibLinearLasso_torch(units = 1, la = 0.1, input_shape = 1)
-
-tib_x1x2 <- tib_layer_torch(units = 1, la = 0.1, input_shape = 2); tib_x1x2
-
-tib_x3 <- TibLinearLasso_torch(units = 1, la = 0.1, input_shape = 1)
-tib_x4 <- TibLinearLasso_torch(units = 1, la = 0.1, input_shape = 1)
-tib_x5 <- TibLinearLasso_torch(units = 1, la = 0.1, input_shape = 1)
 
 
 set.seed(42)
@@ -117,14 +16,20 @@ p <- 5
 x <- data.frame(runif(n*p) %>% matrix(ncol=p))
 y <- 10*x[,1] + rnorm(n)
 
+tib_x1 <- tib_layer_torch(1, 0.1, 1)
+tib_x2 <- tib_layer_torch(1, 0.1, 1)
+
+
 submodules <- list(tib_x1, tib_x2)
-submodules <- list(tib_x1x2)
 test_model <- model_torch(submodules_list = submodules)
 
+test_model()$forward
+
 x_input <- as.list(x[,1:2])
+x_test <- get_luz_dataset(x_input, target = y)
 test_model$debug("forward")
 
-test_model()$forward(x_input)
+test_model()$forward(list(x_test$df_list, x_test$target))
 
 optimizer <- optim_adam(params = test_model()$parameters)
 for (t in 1:2000) {
@@ -159,31 +64,50 @@ round(as.array(Reduce(f = "prod", test_model()$parameters[5:6])))
 round(as.array(Reduce(f = "prod", test_model()$parameters[7:8])))
 round(as.array(Reduce(f = "prod", test_model()$parameters[9:10])))
 
+set.seed(42)
+n <- 1000
+p <- 5
+x <- data.frame(runif(n*p) %>% matrix(ncol=p))
+y <- 2*x[,1] + rnorm(n)
 
 debugonce(deepregression)
 colnames(x) <- paste("x", 1:5, sep = "")
-lasso_test <- deepregression(y = matrix(y), list_of_formulas = list(
+lasso_test_torch <- deepregression(y = matrix(y), list_of_formulas = list(
   loc = ~ -1 + lasso(x1) + lasso(x2) + lasso(x3) + lasso(x4) + lasso(x5),
   scale = ~ 1), data = x, engine = "torch",
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   orthog_options = orthog_control(orthogonalize = F)
 )
+lasso_test_tf <- deepregression(y = matrix(y), list_of_formulas = list(
+  loc = ~ -1 + lasso(x1) + lasso(x2) + lasso(x3) + lasso(x4) + lasso(x5),
+  scale = ~ 1), data = x, engine = "tf",
+  orthog_options = orthog_control(orthogonalize = F)
+)
+debugonce(fit)
+lasso_test_torch %>% fit(epochs = 120, early_stopping = F, validation_split = 0)
+lasso_test_tf %>% fit(epochs = 120, early_stopping = F, validation_split = 0)
 
-lasso_test %>% fit(epochs = 120, early_stopping = F)
-round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[1:2])))
-round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[3:4])))
-round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[5:6])))
-round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[7:8])))
-round(as.array(Reduce(f = "prod", lasso_test$model()$parameters[9:10])))
 
-lasso_test <- deepregression(y = matrix(y), list_of_formulas = list(
+cbind(lasso_test_tf %>% coef(),
+lasso_test_torch %>% coef())
+
+
+lasso_test_torch <- deepregression(y = matrix(y), list_of_formulas = list(
   loc = ~ -1 + lasso(x1,x2) + lasso(x3) + lasso(x4) + lasso(x5),
   scale = ~ 1), data = x, engine = "torch",
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   orthog_options = orthog_control(orthogonalize = F)
 )
+lasso_test_tf <- deepregression(y = matrix(y), list_of_formulas = list(
+  loc = ~ -1 + lasso(x1,x2) + lasso(x3) + lasso(x4) + lasso(x5),
+  scale = ~ 1), data = x, engine = "tf",
+  orthog_options = orthog_control(orthogonalize = F)
+)
 lasso_test
 lasso_test %>% fit(epochs = 150, early_stopping = T)
+
+lasso_test_tf %>% coef()
+lasso_test_torch %>% coef()
 
 torch_multiply(
   lasso_test$model()$parameters[1:2][[1]],
