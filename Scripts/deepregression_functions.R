@@ -166,12 +166,12 @@ get_luz_dataset <- dataset(
     self$target <- target
   },
   
-  .getitem = function(index) {
+  .getbatch = function(index) {
     
     indexes <- lapply(self$df_list,
                       function(x) lapply(x, function(x) x[index,]))
     
-    target <- self$target[index]$view(1)
+    target <- self$target[index]$to(torch_long())
     list(indexes, target)
   },
   
