@@ -11,32 +11,34 @@ simplyconnected_layer_torch <- function(la = la,
       sc <- nn_parameter(x = self$multfac_initializer(input_shape))
       
       sc$register_hook(function(grad){
-        grad + la * 2 *sc$sum()
+        grad + la*sc
       })
       self$sc <- sc
     },
     
     # muss angepasst werden
     # wenn self$sc mehrere sind muss es transponiert werden
-    forward = function(dataset_list)
-      torch_multiply(self$sc$view(c(1, length(self$sc))),
-                     dataset_list)$view(
-                       c(dataset_list$size()[1], length(self$sc))))
+    forward = function(dataset_list){
+      torch_multiply(
+        self$sc$view(c(1, length(self$sc))),
+        dataset_list)
+    }
+  )
 }
 
 
 tiblinlasso_layer_torch <- function(la, input_shape = 1, units = 1,
-                                    kernel_initializer = "trunc_normal"){
+                                    kernel_initializer = "he_normal"){
   
   la <- torch_tensor(la)
   tiblinlasso_layer <- nn_linear(in_features = input_shape,
                                  out_features = units, bias = F)
-  if (kernel_initializer == "glorot_uniform") {
-    nn_init_trunc_normal_(tiblinlasso_layer$weight)
+  if (kernel_initializer == "he_normal") {
+    nn_init_kaiming_normal_(tiblinlasso_layer$parameters$weight)
   }
   
   tiblinlasso_layer$parameters$weight$register_hook(function(grad){
-    grad + la*2*tiblinlasso_layer$parameters$weight$sum()
+    grad + la*tiblinlasso_layer$parameters$weight
   })
   tiblinlasso_layer
 }
@@ -76,19 +78,28 @@ tib_layer_torch <-
 #' @return Torch layer
 #' @export
 layer_dense_torch <- function(units, name, trainable = TRUE,
-                         kernel_initializer = "glorot_uniform"){
+                              kernel_initializer = "glorot_uniform",
+                              use_bias = FALSE, kernel_regularizer = NULL){
   
-  layer_torch <- nn_linear(units, out_features = 1, bias = FALSE)
+  layer <- nn_linear(units, out_features = 1, bias = use_bias)
   
   if (kernel_initializer == "glorot_uniform") {
     nn_init_xavier_uniform_(
-      tensor = layer_torch$weight,
+      tensor = layer$weight,
       gain = nn_init_calculate_gain(nonlinearity = "linear"))
   }
   
-  if(!trainable) layer_torch$parameters$weight$requires_grad = FALSE
+  if(!trainable) layer$parameters$weight$requires_grad = FALSE
   
-  layer_torch
+  if(!is.null(kernel_regularizer)){
+    
+    if(kernel_regularizer$regularizer == "l2") {
+      layer$parameters$weight$register_hook(function(grad){
+        grad + (kernel_regularizer$la)*(layer$parameters$weight)
+      })
+    }}
+  
+  layer
 }
 
 
@@ -142,12 +153,12 @@ model_torch <-  function(submodules_list){
     },
     
     forward = function(dataset_list) {
-      subnetworks <- lapply(1:length(self[[1]]), function(x){
-        self[[1]][[x]](dataset_list[[x]])
+      subnetworks <- lapply(1:length(self$subnetwork), function(x){
+        self$subnetwork[[x]](dataset_list[[x]])
       })
       
-      Reduce(f = "+", x = subnetworks)
-      #torch_sum(torch_stack(subnetworks), dim = 1)
+      #Reduce(f = "+", x = subnetworks)
+      torch_sum(torch_stack(subnetworks), dim = 1)
       }
   )}
 
@@ -171,7 +182,7 @@ get_luz_dataset <- dataset(
     indexes <- lapply(self$df_list,
                       function(x) lapply(x, function(x) x[index,]))
     
-    target <- self$target[index]$to(torch_long())
+    target <- self$target[index]
     list(indexes, target)
   },
   

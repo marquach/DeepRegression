@@ -186,8 +186,7 @@ layer_generator <- function(term, output_dim, param_nr, controls,
     layer_args <- layer_args[layer_args_names]
   
   if(engine == "torch"){
-    torch_not_implemented <- c("activation", "bias_initializer",
-                               "kernel_regularizer", "bias_regularizer",
+    torch_not_implemented <- c("activation", "bias_initializer", "bias_regularizer",
                                "activity_regularizer", "kernel_constraint",  
                                "bias_constraint")
     layer_args <- layer_args[!(names(layer_args) %in% torch_not_implemented)]
@@ -368,6 +367,7 @@ gam_processor <- function(term, data, output_dim, param_nr, controls, engine){
 l1_processor <- function(term, data, output_dim, param_nr, controls, engine){
   # l1 (Tib)
   lambda = controls$sp_scale(data) * as.numeric(extractval(term, "la"))
+  
   if(engine == "tf") {
     layer_class = tib_layer
     without_layer = function(x, ...) 
@@ -467,16 +467,32 @@ l21_processor <- function(term, data, output_dim, param_nr, controls){
 }
 
 
-l2_processor <- function(term, data, output_dim, param_nr, controls){
+l2_processor <- function(term, data, output_dim, param_nr, controls, engine){
   # ridge
   
   lambda = controls$sp_scale(data) * extractval(term, "la")
   
+  if(engine == "tf") {
+    kernel_regularizer = tf$keras$regularizers$l2(l = lambda)
+    layer_class = tf$keras$layers$Dense
+    without_layer = tf$identity
+  }
+  
+  if(engine == "torch"){
+    layer_class = layer_dense_torch
+    without_layer = nn_identity
+    kernel_regularizer = list(regularizer = "l2",
+                              la = lambda)
+  } 
+  
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
                            param_nr = param_nr, 
+                           layer_class = layer_class,
+                           without_layer = without_layer,
                            controls = controls,
-                           kernel_regularizer = tf$keras$regularizers$l2(l = lambda)
+                           kernel_regularizer = kernel_regularizer,
+                           engine = engine
   )
 
   list(
