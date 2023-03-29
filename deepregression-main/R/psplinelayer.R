@@ -121,7 +121,7 @@ layer_spline_torch <- function(P, units, name, trainable = TRUE,
 #' @export
 layer_dense_torch <- function(units, name, trainable = TRUE,
                               kernel_initializer = "glorot_uniform",
-                              use_bias = FALSE){
+                              use_bias = FALSE, kernel_regularizer = NULL){
   
   layer <- nn_linear(units, out_features = 1, bias = use_bias)
   
@@ -132,6 +132,14 @@ layer_dense_torch <- function(units, name, trainable = TRUE,
   }
   
   if(!trainable) layer$parameters$weight$requires_grad = FALSE
+  
+  if(!is.null(kernel_regularizer)){
+    
+    if(kernel_regularizer$regularizer == "l2") {
+    layer$parameters$weight$register_hook(function(grad){
+      grad + (kernel_regularizer$la)*(layer$parameters$weight)
+    })
+  }}
   
   layer
 }
