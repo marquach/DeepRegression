@@ -157,7 +157,11 @@ layer_generator <- function(term, output_dim, param_nr, controls,
     controls$const_broadcasting & output_dim>1)
   
   layer_args <- controls$weight_options$general
-  layer_args <- c(layer_args, list(...))
+  dots <- list(...)
+  layer_dots_index <- which(names(layer_args) %in% names(dots))
+  layer_args[layer_dots_index] <- dots
+  dot_layer_index <- which( names(dots) %in% names(layer_args))
+  layer_args <- c(layer_args, dots[-dot_layer_index])
   
   specific_opt <- term %in% names(controls$weight_options$specific)
   if(specific_opt){
@@ -190,6 +194,7 @@ layer_generator <- function(term, output_dim, param_nr, controls,
                                "activity_regularizer", "kernel_constraint",  
                                "bias_constraint")
     layer_args <- layer_args[!(names(layer_args) %in% torch_not_implemented)]
+    
     }
   
   if(controls$with_layer){
@@ -387,7 +392,8 @@ l1_processor <- function(term, data, output_dim, param_nr, controls, engine){
     without_layer = function(x, ...) 
       return(simplyconnected_layer_torch(
         la = lambda,
-        name = makelayername(term, param_nr),
+        #name = makelayername(term, param_nr),
+        input_shape = length(data_trafo()),
         ...
       )(x))
     further_layer_args <- list(la = lambda, input_shape = length(data_trafo()))
