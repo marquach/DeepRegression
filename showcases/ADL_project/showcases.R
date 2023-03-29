@@ -83,7 +83,8 @@ data(mcycle, package = 'MASS')
 gam_mgcv <- gam(mcycle$accel ~ 1 + s(times), data = mcycle)
 gam_tf <- deepregression(
   list_of_formulas = list(loc = ~ 1 + s(times), scale = ~ 1),
-  data = mcycle, y = mcycle$accel, orthog_options = orthog_options, engine = "tf"
+  data = mcycle, y = mcycle$accel, orthog_options = orthog_options,
+  engine = "tf"
   )
 gam_torch <- deepregression(
   list_of_formulas = list(loc = ~ 1 + s(times), scale = ~ 1),
@@ -95,31 +96,24 @@ gam_torch <- deepregression(
 gam_torch$model <- gam_torch$model  %>% set_opt_hparams(lr = 0.1)
 gam_tf$model$optimizer$lr <- tf$Variable(0.1, name = "learning_rate")
 
-gam_torch %>% fit(epochs = 4000, early_stopping = F)
-gam_tf %>% fit(epochs = 4000, early_stopping = F)
+gam_torch %>% fit(epochs = 500, early_stopping = F, validation_split = 0)
+gam_tf %>% fit(epochs = 500, early_stopping = F, validation_split = 0)
 # Interesting (does not converge when validation_loss is used as early_stopping)
+
+gam_torch_fitted <- gam_torch %>% fit(epochs = 10, early_stopping = F,
+                                      validation_split = 0)
 
 mean((mcycle$accel - fitted(gam_mgcv) )^2)
 # loss is not MSE so loss of model not (directly) comparable
 # Loss in deepregression is neg.loglikehood of given distribution
 mean((mcycle$accel - gam_tf %>% fitted())^2)
+mean((mcycle$accel - gam_torch %>% fitted())^2)
+
 
 plot(mcycle$times, mcycle$accel)
 lines(mcycle$times, fitted(gam_mgcv), col = "red")
 lines(mcycle$times, gam_tf %>% fitted(), col = "green")
-
-# there is no generic fitted function for torch
-# so we have to extract the data_trafo and transform them to tensors and 
-# afterwards save them in a list and push them through the forward function
-gam_data <- gam_torch$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
-int_data <- gam_torch$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
-gam_data <- torch_tensor(gam_data)
-int_data <- torch_tensor(int_data)
-mu_inputs_list <- list(gam_data, int_data)
-
-mean( 
-  (mcycle$accel - as.array(gam_torch$model()[[1]][[1]]$forward(mu_inputs_list)))^2)
-lines(mcycle$times, gam_torch$model()[[1]][[1]]$forward(mu_inputs_list),
+lines(mcycle$times, gam_torch %>% fitted(),
       col = "blue")
 
 
@@ -285,35 +279,42 @@ semi_structured_torch <- deepregression(
 )
 
 # Summary
-semi_structured_tf$model
+semi_structured_tf
 semi_structured_torch
 
-semi_structured_tf %>% fit(epochs = 200, early_stopping = F, batch_size = 32)
-semi_structured_torch %>% fit(epochs = 200, early_stopping = F, batch_size = 32)
+semi_structured_tf %>% fit(epochs = 100, early_stopping = F, batch_size = 32)
+semi_structured_torch_fitted <- 
+  semi_structured_torch %>% fit(epochs = 100,
+                                early_stopping = F, batch_size = 32)
+semi_structured_torch_fitted <- 
+  semi_structured_torch %>% fit(epochs = 100,
+                                early_stopping = F, batch_size = 32,
+                                validation_split=0)
 
-deep_model_data <- semi_structured_torch$init_params$parsed_formulas_contents$loc[[1]]$data_trafo()
-gam_data <- semi_structured_torch$init_params$parsed_formulas_contents$loc[[2]]$data_trafo()
-lin_data <- semi_structured_torch$init_params$parsed_formulas_contents$loc[[3]]$data_trafo()
-int_data <- semi_structured_torch$init_params$parsed_formulas_contents$loc[[4]]$data_trafo()
-deep_model_data <- torch_tensor(as.matrix(as.data.frame(deep_model_data)))
-lin_data <- torch_tensor(lin_data)
-gam_data <- torch_tensor(gam_data)
-int_data <- torch_tensor(int_data)
-
-mu_inputs_list <- list(deep_model_data,
-                       gam_data,
-                       lin_data,
-                       int_data)
+semi_structured_tf$model$history$history
+get_metrics(semi_structured_torch_fitted)
 
 plot(semi_structured_tf %>% fitted(),
-     semi_structured_torch$model()[[1]][[1]]$forward(mu_inputs_list),
+     semi_structured_torch %>% fitted(),
      xlab = "tensorflow", ylab = "torch")
 
 cor(semi_structured_tf %>% fitted(),
-    as.array(
-      semi_structured_torch$model()[[1]][[1]]$forward(mu_inputs_list)))
+    semi_structured_torch %>% fitted())
+
 
 cbind(
   "tf" = unlist(semi_structured_tf %>% coef()),
- "torch" = unlist(lapply(semi_structured_torch$model()$parameters[4:6], 
-                function(x) t(as.array(x)))))
+  "torch" = unlist(semi_structured_torch %>% coef()))
+
+cbind(unlist(semi_structured_tf %>% coef(type = "smooth")),
+      unlist(semi_structured_torch %>% coef(type = "smooth")))
+
+cbind(unlist(semi_structured_tf %>% coef(type = "linear")),
+      unlist(semi_structured_torch %>% coef(type = "linear")))
+
+
+semi_structured_tf %>% cv(epochs = 2)
+semi_structured_torch %>% cv(epochs = 2)
+
+
+
