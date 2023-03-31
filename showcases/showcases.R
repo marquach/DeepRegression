@@ -79,8 +79,10 @@ cbind(
 #################### additive models #################### 
 #### GAM data mcycles
 data(mcycle, package = 'MASS')
-
+plot(mcycle$times, mcycle$accel)
 # Erst mit mgcv
+
+
 gam_mgcv <- gam(mcycle$accel ~ 1 + s(times), data = mcycle)
 gam_tf <- deepregression(
   list_of_formulas = list(loc = ~ 1 + s(times), scale = ~ 1),
@@ -138,6 +140,16 @@ nn_torch <- function() nn_sequential(
   nn_linear(in_features = 32, out_features = 1)
 )
 
+nn_torch_mod <- nn_module(
+  initialize = function(){
+    self$fc1 <- nn_linear(in_features = 3, out_features = 32, bias = F)
+    self$fc2 <-  nn_linear(in_features = 32, out_features = 1)
+  },
+  forward = function(x){
+    x %>% self$fc1() %>% nnf_relu() %>% self$fc2()
+  }
+)
+
 
 
 deep_model_tf <- deepregression(
@@ -153,12 +165,22 @@ deep_model_torch <- deepregression(
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch"
 )
+deep_model_torch_mod <- deepregression(
+  list_of_formulas = list(loc = formula_deep, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options,
+  list_of_deep_models = list(deep_model = nn_torch_mod),
+  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
+  engine = "torch"
+)
 
 deep_model_tf$model
 deep_model_torch
+deep_model_torch_mod
 
 deep_model_tf %>% fit(epochs = 1000, early_stopping = F)
 deep_model_torch %>% fit(epochs = 1000, early_stopping = F)
+deep_model_torch_mod %>% fit(epochs = 1000, early_stopping = F)
+
 
 
 plot(deep_model_tf %>% fitted(),
