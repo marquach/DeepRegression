@@ -343,7 +343,7 @@ fit.deepregression <- function(
       }
     }
 
-  if(length(object$init_params$image_var)>0){
+  if(length(object$init_params$image_var)>0 & object$engine == "tf"){
     
     args <- prepare_generator_deepregression(
       x = object$model,
@@ -356,6 +356,7 @@ fit.deepregression <- function(
       verbose = verbose,
       validation_split = validation_split,
       callbacks = callbacks,
+      engine = object$engine,
       ...
     )
   }
