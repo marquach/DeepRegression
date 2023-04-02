@@ -1,3 +1,36 @@
+get_image_dataset <- dataset(
+  "deepregression_image_dataset",
+  
+  initialize = function(df_list, target) {
+    # muss noch nesser angepasst werden,
+    # falls mehrere Spalten Bilder enthalten bzw. Spalte nicht bilder heißt.
+    self$image <- df_list[[1]]
+    self$df <- df_list[[-1]]
+    self$target <- target
+  },
+  
+  .getitem = function(index) {
+    
+    image_item <- self$image[index] %>% base_loader() %>%
+      torchvision::transform_to_tensor()
+    
+    df_list_item <- self$df[index]
+    
+    
+    target <- self$target[index]
+    list(image_item, df_list_item, target)
+  },
+  
+  .length = function() {
+    length(self$target)
+  }
+  
+)
+
+
+
+
+
 simplyconnected_layer_torch <- function(la = la,
                                         multfac_initializer = torch_ones,
                                         input_shape){
@@ -172,22 +205,33 @@ model_torch <-  function(submodules_list){
 get_luz_dataset <- dataset(
   "deepregression_luz_dataset",
   
-  initialize = function(df_list, target) {
+  initialize = function(df_list, target = NULL) {
     self$df_list <- df_list
     self$target <- target
   },
   
-  .getbatch = function(index) {
+  .getitem = function(index) {
     
+    # am besten hier je nach typ bestimmte methode durchführen
     indexes <- lapply(self$df_list,
-                      function(x) lapply(x, function(x) x[index,]))
+                      function(x) lapply(x, function(y) {
+                        if(!is.null(colnames(y))){
+                          if(colnames(y) == "image"){
+                            return(y[index,] %>% base_loader() %>%
+                              torchvision::transform_to_tensor())
+                        }}
+                        torch_tensor(y[index,])}))
     
-    target <- self$target[index]
-    list(indexes, target)
+    if(!is.null(self$target)) {
+      target <- self$target[index]
+      return(list(indexes, target))
+      }
+    #wichtig output darf nur aus 2 elementen bestehen
+    list(indexes)
   },
   
   .length = function() {
-    length(self$target)
+    lapply(self$df_list[[1]], length)[[1]]
   }
   
 )
@@ -584,7 +628,6 @@ prepare_data_torch <- function(pfc, input_x, target = NULL){
     index
   })
   
-  input_x <- lapply(input_x, torch_tensor)
   df_list <- lapply(distr_datasets_index, function(x){ input_x[x] })
   
   if(is.null(target)) return(df_list)
