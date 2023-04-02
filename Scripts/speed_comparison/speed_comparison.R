@@ -116,5 +116,5 @@ deepreg_benchmark <- benchmark(
 deepreg_benchmark
 
 speed_comparison <- list(deepreg_benchmark, plain_benchmark)
-save(speed_comparison, file= "scripts/speed_comparison/speed_comparison.RData")
+save(speed_comparison, file= "scripts/speed_comparison/speed_comparison_dev_version.RData")
 
