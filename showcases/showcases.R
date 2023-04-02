@@ -83,7 +83,8 @@ plot(mcycle$times, mcycle$accel)
 # Erst mit mgcv
 
 
-gam_mgcv <- gam(mcycle$accel ~ 1 + s(times), data = mcycle)
+gam_mgcv <- gam(mcycle$accel ~ -1 + s(times), data = mcycle)
+gam_data <- model.matrix(gam_mgcv)
 gam_tf <- deepregression(
   list_of_formulas = list(loc = ~ 1 + s(times), scale = ~ 1),
   data = mcycle, y = mcycle$accel, orthog_options = orthog_options,
@@ -177,8 +178,8 @@ deep_model_tf$model
 deep_model_torch
 deep_model_torch_mod
 
-deep_model_tf %>% fit(epochs = 1000, early_stopping = F)
-deep_model_torch %>% fit(epochs = 1000, early_stopping = F)
+deep_model_tf %>% fit(epochs = 500, early_stopping = F)
+deep_model_torch %>% fit(epochs = 500, early_stopping = F)
 deep_model_torch_mod %>% fit(epochs = 1000, early_stopping = F)
 
 

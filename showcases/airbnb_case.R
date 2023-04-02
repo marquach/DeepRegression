@@ -1,7 +1,7 @@
 # Case Study Airbnb
-library(deepregression)
 library(torch)
 library(luz)
+library(torchvision)
 devtools::load_all("deepregression-main/")
 source('scripts/deepregression_functions.R')
 orthog_options = orthog_control(orthogonalize = F)
@@ -28,8 +28,6 @@ list_of_formulas = list(
 mod_simple <- deepregression(y = y, data = airbnb,
                              list_of_formulas = list_of_formulas,
                              list_of_deep_models = NULL)
-class(mod_simple$model)
-
 
 deep_model_tf <- function(x){
     x %>%
@@ -76,14 +74,14 @@ mod_torch <- deepregression(y = y, data = airbnb,
                          subnetwork_builder = subnetwork_init_torch,
                          model_builder = torch_dr
                          )
-mod_tf %>% fit( epochs = 50, validation_split = 0.2)
-mod_torch %>% fit(epochs = 50, validation_split = 0.2)
+mod_tf %>% fit( epochs = 100, validation_split = 0.2)
+mod_torch %>% fit(epochs = 100, validation_split = 0.2)
 
 fitted_vals_tf <- mod_tf %>% fitted()
 fitted_vals_torch <- mod_torch %>% fitted()
 
 
-cor(as.data.frame(fitted_vals_tf, fitted_vals_torch, y))
+cor(data.frame(fitted_vals_tf, fitted_vals_torch, y))
 
 coef(mod_tf, type="linear")
 coef(mod_torch, type="linear")
@@ -125,10 +123,8 @@ abline(v = c(q05_tf, meanval_tf, q95_tf), col="red", lty=2)
 
 
 # working with images
-
-airbnb <- readRDS("/munich_clean.RDS")
 airbnb$image <- paste0("/Users/marquach/Desktop/R_Projects/semi-structured_distributional_regression/application/airbnb/data/pictures/32/",
-                      airbnb$id, ".jpg")
+                       airbnb$id, ".jpg")
 
 cnn_block_tf <- function(
      filters,
@@ -153,15 +149,15 @@ cnn_block_torch <- function(
     kernel_size,
     pool_size,
     rate,
-    input_shape = NULL
+    shape = NULL
 ){
   function() nn_sequential(
     #layer_conv_2d(filters, kernel_size, padding="same", input_shape = input_shape)
     nn_conv2d(in_channels = 3, out_channels = filters,
               kernel_size = kernel_size, padding = "same"),
     nn_relu(),
-    nn_batch_norm2d(num_features = 2*filters),
-    nn_max_pool2d(kernel_size = pool_size),
+    nn_batch_norm2d(num_features = filters),
+    nn_max_pool2d(kernel_size = kernel_size),
     nn_dropout(p = rate)
     )
 }
@@ -181,8 +177,6 @@ cnn_tf <- cnn_block_tf(
    rate = 0.25,
    shape(200, 200, 3)
    )
-cnn_tf
-
 
 deep_model_cnn_tf <- function(x){
    x %>%
@@ -201,7 +195,7 @@ deep_model_cnn_torch <- function(){
     nn_flatten(),
     nn_linear(in_features = 69696, out_features = 32),
     nn_relu(),
-    nn_batch_norm1d(2*32),
+    nn_batch_norm1d(num_features = 32),
     nn_dropout(p = 0.5),  
     nn_linear(32, 1) )
 }
@@ -210,20 +204,17 @@ deep_model_cnn_torch()
 mod_cnn_tf <- deepregression(
    y = y,
    list_of_formulas = list(
-     ~1 + room_type + bedrooms + beds +
-       deep_model_cnn(image),
-     ~1 + room_type),
+     ~-1 + deep_model_cnn(image),
+     ~1),
    data = airbnb,
    list_of_deep_models = list(deep_model_cnn =
-                                  list(deep_model_cnn_tf, c(200,200,3))),
-   optimizer = optimizer_adam(learning_rate = 0.0001))
+                                  list(deep_model_cnn_tf, c(200,200,3))))
 
 mod_cnn_torch <- deepregression(
   y = y,
   list_of_formulas = list(
-    ~1 + room_type + bedrooms + beds +
-      deep_model_cnn(image),
-    ~1 + room_type),
+    ~ -1  + deep_model_cnn(image),
+    ~1 ),
   data = airbnb,
   engine = "torch",
   subnetwork_builder = subnetwork_init_torch,
@@ -231,9 +222,68 @@ mod_cnn_torch <- deepregression(
   list_of_deep_models = list(deep_model_cnn =
                                list(deep_model_cnn_torch, c(200,200,3))))
 
-
 mod_cnn_tf %>% fit(
-   epochs = 100,
-   early_stopping = TRUE,
-   patience = 5)
+   epochs = 60, batch_size = 56,
+   early_stopping = F)
 
+mod_cnn_torch %>% fit(
+  epochs = 60, batch_size = 56,
+  early_stopping = F)
+
+fitted_tf <- mod_cnn_tf %>% fitted()
+fitted_torch <- mod_cnn_torch %>% fitted()
+plot(fitted_torch, fitted_tf)
+cor(fitted_torch, fitted_tf)
+
+library(luz)
+library(torchvision)
+
+model_t <- deep_model_cnn_torch()
+optimizer <- optim_adam(model_t$parameters)
+
+get_image_dataset <- dataset(
+  "deepregression_image_dataset",
+  
+  initialize = function(images, target) {
+    self$image <- images
+    self$target <- target
+  },
+  
+  .getitem = function(index) {
+    
+    indexes <- self$image[index] %>% base_loader() %>%
+      torchvision::transform_to_tensor()
+    
+    target <- self$target[index]
+    list(indexes, target)
+  },
+  
+  .length = function() {
+    length(self$target)
+  }
+  
+)
+
+ds <- get_image_dataset(airbnb$image, y)
+ds$.getitem(1)
+
+test_dl <- ds %>% dataloader(batch_size = 20)
+
+luz_model <- nn_module(
+  initialize = function(){
+    self$cnn <- cnn_torch()
+    self$fc <- nn_linear(in_features = 69696, out_features = 32)
+    self$batchnorm1d <- nn_batch_norm1d(num_features = 32)
+    self$fc2 <- nn_linear(32, 1)
+  },
+  forward = function(x){
+    x %>% self$cnn() %>% torch_flatten(start_dim = 2) %>% self$fc() %>%
+      nnf_relu() %>% self$batchnorm1d() %>% nnf_dropout(p = 0.5) %>%
+      self$fc2() %>% torch_flatten()
+  }
+  )
+
+pre_fit <- luz_model %>% luz::setup(loss = nnf_mse_loss,
+                         optimizer = optim_adam
+                         )
+fitte <- pre_fit %>% fit(test_dl, epochs = 1)
