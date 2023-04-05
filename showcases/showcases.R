@@ -1,4 +1,3 @@
-library(deepregression)
 library(torch)
 library(luz)
 library(mgcv) # just used to fit gam model
@@ -83,7 +82,7 @@ plot(mcycle$times, mcycle$accel)
 # Erst mit mgcv
 
 
-gam_mgcv <- gam(mcycle$accel ~ -1 + s(times), data = mcycle)
+gam_mgcv <- gam(mcycle$accel ~ 1 + s(times), data = mcycle)
 gam_data <- model.matrix(gam_mgcv)
 gam_tf <- deepregression(
   list_of_formulas = list(loc = ~ 1 + s(times), scale = ~ 1),
