@@ -227,48 +227,47 @@ predict_gen <- function(
   ret_dist = FALSE
 )
 {
+  if(is.null(batch_size)) batch_size <- 20
+  
   
   if(!is.null(newdata)){
     newdata_processed <- prepare_newdata(object$init_params$parsed_formulas_contents, 
                                          newdata, 
-                                         gamdata = object$init_params$gamdata$data_trafos)
+                                         gamdata = object$init_params$gamdata$data_trafos,
+                                         engine = object$engine)
   }else{
-    if(object$engine == "tf"){
     newdata_processed <- prepare_data(object$init_params$parsed_formulas_contents,
                                       gamdata = object$init_params$gamdata$data_trafos,
-                                      engine = object$engine)
-    }
-    if(object$engine == "torch"){
-      
-      newdata_processed <- prepare_data(object$init_params$parsed_formulas_contents,
-                                        gamdata = object$init_params$gamdata$data_trafos,
-                                        engine = object$engine)
-      
-      newdata_processed <-  prepare_data_torch(
-        pfc  = object$init_params$parsed_formulas_content,
-        input_x = newdata_processed)
-      
-      predict_ds <- get_luz_dataset(df_list = newdata_processed)
-      predict_dl <- predict_ds %>% dataloader(batch_size = 32)
-      
-      iter <- predict_dl$.iter()
-      b <- iter$.next()
-      
-      object$model <- object$model()
-      res <- list()[1:iter$.length()]
-      i <- 1
-      coro::loop(for (b in predict_dl) {
-        res[[i]] <-convert_fun(apply_fun(object$model(b[[1]])))
-        i <- i+1
-        })
+                                      engine = object$engine)}
+  max_data <- NROW(newdata_processed[[1]])
+  
+  if(object$engine == "torch"){
+    newdata_processed <-  prepare_data_torch(
+      pfc  = object$init_params$parsed_formulas_content,
+      input_x = newdata_processed)
+    
+    cat(sprintf("Found %s validated image filenames \n", max_data))
+    
+    predict_ds <- get_luz_dataset(df_list = newdata_processed,
+                                  length = max_data)
+    predict_dl <- predict_ds %>% dataloader(batch_size = batch_size)
+    
+    iter <- predict_dl$.iter()
+    b <- iter$.next()
+    
+    object$model <- object$model()
+    res <- list()[1:iter$.length()]
+    i <- 1
+    coro::loop(for (b in predict_dl) {
+      res[[i]] <- convert_fun(apply_fun(object$model(b[[1]])))
+      i <- i+1
+      })
 
-      yhat <- Reduce(x = res, f = c)
-      return(yhat)
-    }
+    yhat <- Reduce(x = res, f = c)
+    return(yhat)
   }
   # prepare generator
-  max_data <- NROW(newdata_processed[[1]])
-  if(is.null(batch_size)) batch_size <- 20
+  
   steps_per_epoch <- ceiling(max_data/batch_size)
   
   generator <- make_generator(input_x = newdata_processed,
