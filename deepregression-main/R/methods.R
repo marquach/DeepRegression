@@ -356,7 +356,6 @@ fit.deepregression <- function(
       verbose = verbose,
       validation_split = validation_split,
       callbacks = callbacks,
-      engine = object$engine,
       ...
     )
   }
