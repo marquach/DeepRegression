@@ -121,6 +121,26 @@ plot(xseq, sapply(xseq, function(x) c(
 abline(v = c(q05_tf, meanval_tf, q95_tf), col="red", lty=2)
 
 
+embd_mod <- function(x) x %>%
+  layer_embedding(input_dim = 1000,
+                   output_dim = 100) %>%
+  layer_lambda(f = function(x) k_mean(x, axis = 2)) %>%
+  layer_dense(20, activation = "tanh") %>%
+  layer_dropout(0.3) %>%
+  layer_dense(2)
+
+
+mod_text_tf <- deepregression(
+   y = y,
+   list_of_formulas = list(
+     location = ~ 1,
+     scale = ~ 1,
+     both = ~ 0 + embd_mod(texts)
+     ),
+   mapping = list(1, 2, 1:2),
+   list_of_deep_models = list(embd_mod = embd_mod),
+   data = airbnb
+   )
 
 # working with images
 airbnb$image <- paste0("/Users/marquach/Desktop/R_Projects/semi-structured_distributional_regression/application/airbnb/data/pictures/32/",
@@ -204,8 +224,9 @@ deep_model_cnn_torch()
 mod_cnn_tf <- deepregression(
    y = y,
    list_of_formulas = list(
-     ~-1 + deep_model_cnn(image),
-     ~1),
+     ~1 + room_type + bedrooms + beds +
+       deep_model_cnn(image),
+      ~1 + room_type),
    data = airbnb,
    list_of_deep_models = list(deep_model_cnn =
                                   list(deep_model_cnn_tf, c(200,200,3))))
@@ -213,8 +234,9 @@ mod_cnn_tf <- deepregression(
 mod_cnn_torch <- deepregression(
   y = y,
   list_of_formulas = list(
-    ~ -1  + deep_model_cnn(image),
-    ~1 ),
+    ~1 + room_type + bedrooms + beds +
+       deep_model_cnn(image),
+     ~1 + room_type),
   data = airbnb,
   engine = "torch",
   subnetwork_builder = subnetwork_init_torch,
@@ -223,11 +245,11 @@ mod_cnn_torch <- deepregression(
                                list(deep_model_cnn_torch, c(200,200,3))))
 
 mod_cnn_tf %>% fit(
-   epochs = 60, batch_size = 56,
+   epochs = 50, batch_size = 56,
    early_stopping = F)
 
 mod_cnn_torch %>% fit(
-  epochs = 60, batch_size = 56,
+  epochs = 50, batch_size = 56,
   early_stopping = F)
 
 fitted_tf <- mod_cnn_tf %>% fitted()
