@@ -1,35 +1,3 @@
-get_image_dataset <- dataset(
-  "deepregression_image_dataset",
-  
-  initialize = function(df_list, target) {
-    # muss noch nesser angepasst werden,
-    # falls mehrere Spalten Bilder enthalten bzw. Spalte nicht bilder heißt.
-    self$image <- df_list[[1]]
-    self$df <- df_list[[-1]]
-    self$target <- target
-  },
-  
-  .getitem = function(index) {
-    
-    image_item <- self$image[index] %>% base_loader() %>%
-      torchvision::transform_to_tensor()
-    
-    df_list_item <- self$df[index]
-    
-    
-    target <- self$target[index]
-    list(image_item, df_list_item, target)
-  },
-  
-  .length = function() {
-    length(self$target)
-  }
-  
-)
-
-
-
-
 
 simplyconnected_layer_torch <- function(la = la,
                                         multfac_initializer = torch_ones,
@@ -55,7 +23,7 @@ simplyconnected_layer_torch <- function(la = la,
       torch_multiply(
         self$sc$view(c(1, length(self$sc))),
         dataset_list)
-    }
+      }
   )
 }
 
@@ -205,37 +173,58 @@ model_torch <-  function(submodules_list){
 get_luz_dataset <- dataset(
   "deepregression_luz_dataset",
   
-  initialize = function(df_list, target = NULL) {
-    self$df_list <- df_list
+  initialize = function(df_list, target = NULL, length = NULL) {
+    self$data <- self$prepare_data(df_list)
+    
     self$target <- target
+    self$length <- length
+    
+    
   },
   
   .getitem = function(index) {
     
     # am besten hier je nach typ bestimmte methode durchführen
-    indexes <- lapply(self$df_list,
+    indexes <- lapply(self$data,
                       function(x) lapply(x, function(y) {
-                        if(!is.null(colnames(y))){
+                        if(!inherits(y, "torch_tensor"))
                           if(colnames(y) == "image"){
-                            return(y[index,] %>% base_loader() %>%
-                              torchvision::transform_to_tensor())
-                        }}
-                        torch_tensor(y[index,])}))
-    
-    if(!is.null(self$target)) {
-      target <- self$target[index]
-      return(list(indexes, target))
-      }
-    #wichtig output darf nur aus 2 elementen bestehen
-    list(indexes)
+                          return(y[index,] %>% base_loader() %>%
+                                   torchvision::transform_to_tensor())}
+                        y[index,]}))
+    if(is.null(self$target)) return(list(indexes))
+    target <- self$target[index]
+    list(indexes, target)
   },
   
   .length = function() {
-    lapply(self$df_list[[1]], length)[[1]]
-  }
+    if(!is.null(self$length)) return(self$length)
+    length(self$target)
+    
+  },
   
+  prepare_data = function(df_list){
+    
+    lapply(df_list, function(x) 
+      lapply(x, function(y){
+        if((ncol(y)==1) & check_data_for_image(y)){
+          colnames(y) <- "image"
+          #print(sprintf("Found %s validated image filenames", length(y)))
+          return(y)
+          }
+        torch_tensor(y)}))
+    }
 )
 
+
+# check if variable contains image data
+
+check_data_for_image <- function(data){
+  jpg_yes <- all(grepl(x = data, pattern = ".jpg"))
+  png_yes <- all(grepl(x = data, pattern = ".png"))
+  image_yes <- jpg_yes | png_yes
+  image_yes
+}
 
 #' Initializes a Subnetwork based on the Processed Additive Predictor
 #' 
@@ -682,14 +671,18 @@ prepare_input_list_model <- function(input_x, input_y,
     
     if(!identical(validation_split, 0) & !is.null(validation_split)){
       train_ids <- sample(1:length(input_y), 
-                          size = (1-validation_split) * length(input_y))
+                          size = ceiling((1-validation_split) * length(input_y)))
       valid_ids <- sample(setdiff(1:length(input_y), train_ids),
                           size = validation_split * length(input_y))
       
       train_ds <- dataset_subset(input_dataloader, indices = train_ids)
       valid_ds <- dataset_subset(input_dataloader, indices = valid_ids)
       
+      if(any(unlist(lapply(input_x, check_data_for_image)))) 
+        cat(sprintf("Found %s validated image filenames \n", length(train_ids)))
       train_dl <- dataloader(train_ds, batch_size = batch_size)
+      if(any(unlist(lapply(input_x, check_data_for_image))))
+        cat(sprintf("Found %s validated image filenames \n", length(valid_ids)))
       valid_dl <- dataloader(valid_ds, batch_size = batch_size)
     }
     
