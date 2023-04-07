@@ -90,11 +90,13 @@ layer_spline = function(units = 1L, P, name, trainable = TRUE,
 #' @param kernel_initializer initializer; for basis coefficients
 #' @return Torch layer
 #' @export
-layer_spline_torch <- function(P, units, name, trainable = TRUE,
+layer_spline_torch <- function(P, units = 1L, name, trainable = TRUE,
                                kernel_initializer = "glorot_uniform"){
   
   P <- torch_tensor(P)
-  spline_layer <- nn_linear(units, out_features = 1, bias = FALSE)
+  input_shape <- P$size(1)
+  spline_layer <- nn_linear(in_features = input_shape,
+                            out_features = units, bias = FALSE)
   
   if (kernel_initializer == "glorot_uniform") {
     nn_init_xavier_uniform_(
@@ -119,11 +121,12 @@ layer_spline_torch <- function(P, units, name, trainable = TRUE,
 #' @param kernel_initializer initializer; for coefficients
 #' @return Torch layer
 #' @export
-layer_dense_torch <- function(units, name, trainable = TRUE,
+layer_dense_torch <- function(input_shape, units = 1L, name, trainable = TRUE,
                               kernel_initializer = "glorot_uniform",
                               use_bias = FALSE, kernel_regularizer = NULL){
   
-  layer <- nn_linear(units, out_features = 1, bias = use_bias)
+  layer <- nn_linear(in_features = input_shape,
+                     out_features = units, bias = use_bias)
   
   if (kernel_initializer == "glorot_uniform") {
     nn_init_xavier_uniform_(
