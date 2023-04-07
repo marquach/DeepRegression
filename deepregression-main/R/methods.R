@@ -198,6 +198,7 @@ predict.deepregression <- function(
           prepare_data_torch(object$init_params$parsed_formulas_contents,
                              input_x = input_model)
         object$model <- object$model()
+        object$model$eval()
       }
       
       yhat <- object$model(input_model)
@@ -216,6 +217,7 @@ predict.deepregression <- function(
           prepare_data_torch(object$init_params$parsed_formulas_contents,
                              input_x = newdata_processed)
         object$model <- object$model()
+        object$model$eval()
       }
       yhat <- object$model(newdata_processed)
     }

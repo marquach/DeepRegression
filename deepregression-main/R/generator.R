@@ -241,6 +241,17 @@ predict_gen <- function(
                                       engine = object$engine)}
   max_data <- NROW(newdata_processed[[1]])
   
+  if(is.null(apply_fun)){ 
+    
+    apply_fun <- function(x){x}
+    ret_dist <- TRUE
+    
+  }else{
+    
+    ret_dist <- FALSE
+    
+  }
+  
   if(object$engine == "torch"){
     newdata_processed <-  prepare_data_torch(
       pfc  = object$init_params$parsed_formulas_content,
@@ -256,6 +267,8 @@ predict_gen <- function(
     b <- iter$.next()
     
     object$model <- object$model()
+    object$model$eval()
+    
     res <- list()[1:iter$.length()]
     i <- 1
     coro::loop(for (b in predict_dl) {
@@ -263,7 +276,8 @@ predict_gen <- function(
       i <- i+1
       })
 
-    yhat <- Reduce(x = res, f = c)
+    #yhat <- Reduce(x = res, f = c)
+    yhat <- do.call("rbind", (res))
     return(yhat)
   }
   # prepare generator
@@ -275,17 +289,6 @@ predict_gen <- function(
                               batch_size = batch_size,
                               sizes = object$init_params$image_var,
                               shuffle = FALSE)
-  
-  if(is.null(apply_fun)){ 
-    
-    apply_fun <- function(x){x}
-    ret_dist <- TRUE
-    
-  }else{
-    
-    ret_dist <- FALSE
-    
-  }
   
   res <- lapply(1:steps_per_epoch, function(i) 
     convert_fun(apply_fun(suppressWarnings(
