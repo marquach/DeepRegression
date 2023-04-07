@@ -69,6 +69,11 @@ fitted_vals_tf <- mod_tf %>% fitted()
 fitted_vals_torch <- mod_torch %>% fitted()
 
 cor(data.frame(fitted_vals_tf, fitted_vals_torch, y))
+plot(fitted_vals_tf, fitted_vals_torch)
+
+
+coef(mod_tf)
+coef(mod_torch)
 
 coef(mod_tf, type="linear")
 coef(mod_torch, type="linear")
@@ -76,8 +81,19 @@ coef(mod_torch, type="linear")
 coef(mod_tf, type="smooth")
 coef(mod_torch, type="smooth")
 
+coef(mod_tf, which_param = 1)
+coef(mod_tf, which_param = 2)
+coef(mod_torch, which_param = 1)
+coef(mod_torch, which_param = 2)
+
 plot(mod_tf)
 plot(mod_torch)
+
+test1 <- plot(mod_torch, only_data = T); str(test1,1)
+test2 <- plot(mod_tf, only_data = T); str(test2,1)
+
+res_cv_tf <- mod_tf %>% cv(epochs = 2)
+res_cv_torch <- mod_torch %>% cv(epochs = 2)
 
 dist_tf <- mod_tf %>% get_distribution()
 dist_torch <- mod_torch %>% get_distribution()
@@ -109,28 +125,6 @@ plot(xseq, sapply(xseq, function(x) c(
   as.matrix(exp(dist1_torch$log_prob(x))))),
   type="l", ylab = "density(price)", xlab = "price")
 abline(v = c(q05_tf, meanval_tf, q95_tf), col="red", lty=2)
-
-
-embd_mod <- function(x) x %>%
-  layer_embedding(input_dim = 1000,
-                   output_dim = 100) %>%
-  layer_lambda(f = function(x) k_mean(x, axis = 2)) %>%
-  layer_dense(20, activation = "tanh") %>%
-  layer_dropout(0.3) %>%
-  layer_dense(2)
-
-
-mod_text_tf <- deepregression(
-   y = y,
-   list_of_formulas = list(
-     location = ~ 1,
-     scale = ~ 1,
-     both = ~ 0 + embd_mod(texts)
-     ),
-   mapping = list(1, 2, 1:2),
-   list_of_deep_models = list(embd_mod = embd_mod),
-   data = airbnb
-   )
 
 # working with images
 airbnb$image <- paste0("/Users/marquach/Desktop/R_Projects/semi-structured_distributional_regression/application/airbnb/data/pictures/32/",
@@ -235,11 +229,11 @@ mod_cnn_torch <- deepregression(
                                list(deep_model_cnn_torch, c(200,200,3))))
 
 mod_cnn_tf %>% fit(
-   epochs = 50, batch_size = 56,
+   epochs = 100, batch_size = 56,
    early_stopping = F)
 
 mod_cnn_torch %>% fit(
-  epochs = 50, batch_size = 56,
+  epochs = 100, batch_size = 56,
   early_stopping = F)
 
 fitted_tf <- mod_cnn_tf %>% fitted()
@@ -247,58 +241,9 @@ fitted_torch <- mod_cnn_torch %>% fitted()
 plot(fitted_torch, fitted_tf)
 cor(fitted_torch, fitted_tf)
 
-mod_cnn_tf %>% predict(airbnb[1,])
+mod_cnn_tf %>% predict(airbnb[1,]) 
+fitted_tf[1]
 mod_cnn_torch %>% predict(airbnb[1,])
+fitted_torch[1]
 
-library(luz)
-library(torchvision)
 
-model_t <- deep_model_cnn_torch()
-optimizer <- optim_adam(model_t$parameters)
-
-get_image_dataset <- dataset(
-  "deepregression_image_dataset",
-  
-  initialize = function(images, target) {
-    self$image <- images
-    self$target <- target
-  },
-  
-  .getitem = function(index) {
-    
-    indexes <- self$image[index] %>% base_loader() %>%
-      torchvision::transform_to_tensor()
-    
-    target <- self$target[index]
-    list(indexes, target)
-  },
-  
-  .length = function() {
-    length(self$target)
-  }
-  
-)
-
-ds <- get_image_dataset(airbnb$image, y)
-ds$.getitem(1)
-
-test_dl <- ds %>% dataloader(batch_size = 20)
-
-luz_model <- nn_module(
-  initialize = function(){
-    self$cnn <- cnn_torch()
-    self$fc <- nn_linear(in_features = 69696, out_features = 32)
-    self$batchnorm1d <- nn_batch_norm1d(num_features = 32)
-    self$fc2 <- nn_linear(32, 1)
-  },
-  forward = function(x){
-    x %>% self$cnn() %>% torch_flatten(start_dim = 2) %>% self$fc() %>%
-      nnf_relu() %>% self$batchnorm1d() %>% nnf_dropout(p = 0.5) %>%
-      self$fc2() %>% torch_flatten()
-  }
-  )
-
-pre_fit <- luz_model %>% luz::setup(loss = nnf_mse_loss,
-                         optimizer = optim_adam
-                         )
-fitte <- pre_fit %>% fit(test_dl, epochs = 1)
