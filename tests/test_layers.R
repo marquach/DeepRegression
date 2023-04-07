@@ -1,9 +1,17 @@
+# Script contains tests from  
+# https://github.com/neural-structured-additive-learning/deepregression/blob/main/tests/testthat/test_layers.R
+# These test the implementation of the lasso layer and their resulting sparsity
+
 library(tensorflow)
 library(torch)
 library(luz)
+library(tictoc)
+library(glmnet)
+
 source("scripts/deepregression_functions.R")
 devtools::load_all("deepregression-main/")
 
+# TF is used as benchmark as this was already implemented
 set.seed(42)
 tf$random$set_seed(42)
 n <- 1000
@@ -13,59 +21,70 @@ y <- 10*x[,1] + rnorm(n)
 
 inp <- layer_input(shape=c(p), 
                    batch_shape = NULL)
+# deepregression::tib_layer
 out <- tib_layer(units=1L, la=1)(inp)
 mod <- keras_model(inp, out)
 
 mod %>% compile(loss="mse",
                 optimizer = tf$optimizers$Adam(learning_rate=1e-2))
-
+tic()
 mod %>% fit(x=x, y=matrix(y), epochs=250L, 
             verbose=T, view_metrics = F,
             validation_split=0.1)
+toc()
+
 mod$get_weights()
 apply(Reduce("cbind", lapply(mod$get_weights(),c)), MARGIN = 1, prod)
 
-# torch approach
+# torch approach fully manual (2x longer than tf)
 tib_module <- tib_layer_torch(units = 1, la = 1, input_shape = 50)
-linear_module <- layer_dense_torch(units = 50, use_bias = F)
+optimizer_tiblasso <- optim_adam(tib_module$parameters, lr=1e-2)
+input <- torch_tensor(x)
+data_x <- input
+data_y <- torch_tensor(y)
 
-test_ds <- get_luz_dataset(df_list = list(list(x)), target = y)
-test_dl <- test_ds %>% dataloader(batch_size = 256)
-
-iter <- test_dl$.iter()
-b <- iter$.next()
-optimizer_tib <- optim_adam(tib_module$parameters, lr = 1e-2)
-optimizer_lin <- optim_adam(linear_module$parameters, lr = 1e-2)
-
-
-for (epoch in 1:250) {
-
-  coro::loop(for (b in test_dl) {
-    optimizer_tib$zero_grad()
-    optimizer_lin$zero_grad()
-    output_tib <- tib_module(b[[1]][[1]][[1]]) %>% torch_flatten()
-    output_lin <- linear_module(b[[1]][[1]][[1]]) %>% torch_flatten()
-    loss_tib <- nnf_mse_loss(output_tib, b[[2]])
-    loss_lin <- nnf_mse_loss(output_lin, b[[2]])
+batch_size <- 32
+num_data_points <- data_y$size(1)
+num_batches <- floor(num_data_points/batch_size)
+tic()
+epochs <- 250
+for(epoch in 1:epochs){
+  l <- c()
+  # rearrange the data each epoch
+  permute <- torch_randperm(num_data_points) + 1L
+  data_x <- data_x[permute]
+  data_y <- data_y[permute]
+  # manually loop through the batches
+  for(batch_idx in 1:num_batches){
+    # here index is a vector of the indices in the batch
+    index <- (batch_size*(batch_idx-1) + 1):(batch_idx*batch_size)
     
-    loss_tib$backward()
-    loss_lin$backward()
+    x_batch <- data_x[index]
+    y_batch <- data_y[index]
     
-    optimizer_tib$step()
-    optimizer_lin$step()
-    
-
-  })
-  cat("Epoch: ", epoch, "   Loss_tib: ", loss_tib$item(),
-  "Loss_lin: ", loss_lin$item(),  "\n")
+    optimizer_tiblasso$zero_grad()
+    output <- tib_module(x_batch) %>% torch_flatten()
+    l_tib <- nnf_mse_loss(output, y_batch)
+    l_tib$backward()
+    optimizer_tiblasso$step()
+    l <- c(l, l_tib$item())
+  }
+  
+  cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l)))
 }
+toc()
 
-cbind("ridge_torch" =  apply(cbind(t(as.array(tib_module$parameters[[1]])),
-      "dense_torch" = as.array(tib_module$parameters[[2]])), MARGIN = 1, prod),
-      unlist(t(as.array(linear_module$parameters[[1]]))),
-      "ridge_tf" = apply(Reduce("cbind", lapply(mod$get_weights(),c)), MARGIN = 1, prod)
-)
+lasso_glmnet <- glmnet(intercept = F, x, y, alpha = 1, lambda  = 1)
+
+cbind("lasso_torch" =  apply(
+  cbind(t(as.array(tib_module$parameters[[1]])),
+        as.array(tib_module$parameters[[2]])), MARGIN = 1, prod),
+      "lasso_tf" = apply(
+        Reduce("cbind", lapply(mod$get_weights(),c)), MARGIN = 1, prod),
+  "lasso_glmnet" =  coef(lasso_glmnet)[-1])
+
 # looks like torch is able to capture only true relationship better then tf
+# keep in mind that lasso is biased
 expect_true(abs(Reduce("prod", lapply(tib_module$parameters,
                                       function(x) as.array(x)))) < 1)
 
@@ -81,32 +100,54 @@ mod %>% fit(x=x, y=matrix(y), epochs=500L,
             validation_split=0.1)
 mod$get_weights()
 
-ridge_layer <- layer_dense_torch(units = 50, use_bias = F, 
-                  kernel_regularizer = list( regularizer = "l2", la = 0.01))
-
-iter <- test_dl$.iter()
-b <- iter$.next()
-optimizer <- optim_adam(ridge_layer$parameters, lr = 1e-2)
 
 
-for (epoch in 1:500L) {
+
+# torch approach fully manual (2x longer than tf)
+ridge_layer <- layer_dense_torch(
+  units = 50, use_bias = F, 
+  kernel_regularizer = list( regularizer = "l2", la = 0.01))
+optimizer_ridge <- optim_adam(ridge_layer$parameters, lr=1e-2)
+
+tic()
+epochs <- 250
+for(epoch in 1:epochs){
   l <- c()
-  coro::loop(for (b in test_dl) {
-    optimizer$zero_grad()
-    output <- ridge_layer(b[[1]][[1]][[1]]) %>% torch_flatten()
-    loss <- nnf_mse_loss(output, b[[2]])
-    loss$backward()
-    optimizer$step()
-    l <- c(l, loss$item())
-  })}
+  # rearrange the data each epoch
+  permute <- torch_randperm(num_data_points) + 1L
+  data_x <- data_x[permute]
+  data_y <- data_y[permute]
+  # manually loop through the batches
+  for(batch_idx in 1:num_batches){
+    # here index is a vector of the indices in the batch
+    index <- (batch_size*(batch_idx-1) + 1):(batch_idx*batch_size)
+    
+    x_batch <- data_x[index]
+    y_batch <- data_y[index]
+    
+    optimizer_ridge$zero_grad()
+    output <- ridge_layer(x_batch) %>% torch_flatten()
+    l_ridge <- nnf_mse_loss(output, y_batch)
+    l_ridge$backward()
+    optimizer_ridge$step()
+    l <- c(l, l_ridge$item())
+  }
+  
+  cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l)))
+}
+toc()
 
-cbind( "ridge_torch" = t(as.array(ridge_layer$parameters$weight)),
-       "ridge_tf" = mod$get_weights()[[1]])
-#almost same
+ridge_glmnet <- glmnet(intercept = F, x, y, alpha = 0, lambda  = 0.1)
+
+cbind("ridge_torch" =  as.array(ridge_layer$parameters$weight$t()),
+      "ridge_tf" =mod$get_weights()[[1]],
+      "ridge_glmnet" =  coef(ridge_glmnet)[-1])
+
 
 # Now with deepregression function
 set.seed(42)
 n <- 1000
+# here only 5 variables
 p <- 5
 x <- data.frame(runif(n*p) %>% matrix(ncol=p))
 y <- 10*x[,1] + rnorm(n)
@@ -126,9 +167,14 @@ lasso_test_tf <- deepregression(y = matrix(y), list_of_formulas = list(
   scale = ~ 1), data = x, engine = "tf",
   orthog_options = orthog_control(orthogonalize = F)
 )
-lasso_test_torch %>% fit(epochs = 1000, early_stopping = F,
+
+# adapt learning rate to converge faster
+lasso_test_torch$model <- lasso_test_torch$model  %>% set_opt_hparams(lr = 1e-2)
+lasso_test_tf$model$optimizer$lr <- tf$Variable(1e-2, name = "learning_rate")
+
+lasso_test_torch %>% fit(epochs = 500, early_stopping = F,
                          validation_split = 0.1, batch_size = 256)
-lasso_test_tf %>% fit(epochs = 1000, early_stopping = F, validation_split = 0.1,
+lasso_test_tf %>% fit(epochs = 500, early_stopping = F, validation_split = 0.1,
                       batch_size = 256)
 
 cbind("tf" = lasso_test_tf %>% coef(),
@@ -148,19 +194,17 @@ rigde_test_torch <- deepregression(y = matrix(y), list_of_formulas = list(
   orthog_options = orthog_control(orthogonalize = F)
 )
 
+rigde_test_torch$model <- rigde_test_torch$model  %>% set_opt_hparams(lr = 1e-2)
+rigde_test_tf$model$optimizer$lr <- tf$Variable(1e-2, name = "learning_rate")
+
 rigde_test_tf %>% fit(epochs = 100, early_stopping = F, validation_split = 0.2)
-rigde_test_tf %>% coef()
-
 rigde_test_torch %>% fit(epochs = 100, early_stopping = F, validation_split = 0.2)
-rigde_test_torch %>% coef()
-
-solve( t(x) %*% as.matrix(x) + 0.1 * diag(5), t(x) %*%y)
-
-library(glmnet)
 ridge_glmnet <- glmnet(intercept = F, x, y, alpha = 0, lambda  = 0.1)
-coef(ridge_glmnet)
-lasso_glmnet <- glmnet(intercept = F, x, y, alpha = 1, lambda  = 1)
-coef(lasso_glmnet)
+
+cbind("ridge_tf" = rigde_test_tf %>% coef(),
+      "ridge_torch" = rigde_test_torch %>% coef(),
+      "ridge_glmnet" = coef(ridge_glmnet)[-1])
+
 
 
 
