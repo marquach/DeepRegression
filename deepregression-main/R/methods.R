@@ -308,7 +308,7 @@ fit.deepregression <- function(
     if(object$engine == "torch") {
       callbacks <- append(callbacks,
         list(luz_callback_early_stopping(patience = patience),
-        luz_callback_keep_best_model()
+              luz_callback_keep_best_model()
         ))
     }
   }
