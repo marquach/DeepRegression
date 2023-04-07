@@ -104,8 +104,7 @@ mod$get_weights()
 
 
 # torch approach fully manual (2x longer than tf)
-ridge_layer <- layer_dense_torch(
-  units = 50, use_bias = F, 
+ridge_layer <- layer_dense_torch(input_shape = 50, use_bias = F, 
   kernel_regularizer = list( regularizer = "l2", la = 0.01))
 optimizer_ridge <- optim_adam(ridge_layer$parameters, lr=1e-2)
 
@@ -139,8 +138,8 @@ toc()
 
 ridge_glmnet <- glmnet(intercept = F, x, y, alpha = 0, lambda  = 0.1)
 
-cbind("ridge_torch" =  as.array(ridge_layer$parameters$weight$t()),
-      "ridge_tf" =mod$get_weights()[[1]],
+data.frame("ridge_torch" =  as.array(ridge_layer$parameters$weight$t()),
+      "ridge_tf" = mod$get_weights()[[1]],
       "ridge_glmnet" =  coef(ridge_glmnet)[-1])
 
 
@@ -197,8 +196,8 @@ rigde_test_torch <- deepregression(y = matrix(y), list_of_formulas = list(
 rigde_test_torch$model <- rigde_test_torch$model  %>% set_opt_hparams(lr = 1e-2)
 rigde_test_tf$model$optimizer$lr <- tf$Variable(1e-2, name = "learning_rate")
 
-rigde_test_tf %>% fit(epochs = 100, early_stopping = F, validation_split = 0.2)
-rigde_test_torch %>% fit(epochs = 100, early_stopping = F, validation_split = 0.2)
+rigde_test_tf %>% fit(epochs = 500, early_stopping = T, validation_split = 0.2)
+rigde_test_torch %>% fit(epochs = 500, early_stopping = T, validation_split = 0.2)
 ridge_glmnet <- glmnet(intercept = F, x, y, alpha = 0, lambda  = 0.1)
 
 cbind("ridge_tf" = rigde_test_tf %>% coef(),
