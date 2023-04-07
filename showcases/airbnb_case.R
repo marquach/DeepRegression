@@ -1,33 +1,20 @@
 # Case Study Airbnb
+# https://arxiv.org/pdf/2104.02705.pdf#page=30&zoom=100,72,725
 library(torch)
 library(luz)
 library(torchvision)
 devtools::load_all("deepregression-main/")
 source('scripts/deepregression_functions.R')
+
+
 orthog_options = orthog_control(orthogonalize = F)
 
-
+# load  and prepare data
 airbnb <- readRDS("/Users/marquach/Desktop/R_Projects/semi-structured_distributional_regression/application/airbnb/munich_clean.RDS")
-
 airbnb$days_since_last_review <- as.numeric(
    difftime(airbnb$date, airbnb$last_review)
    )
-
-list_of_formulas = list(
-   loc = ~ 1 + x + s(z1, bs="tp"),
-   scale = ~ 0 + s(z2, bs="ps") + dnn(u)
-   )
-
 y = log(airbnb$price)
-
-list_of_formulas = list(
-   loc = ~ 1 + te(latitude, longitude, df = 5),
-   scale = ~ 1
-   )
-
-mod_simple <- deepregression(y = y, data = airbnb,
-                             list_of_formulas = list_of_formulas,
-                             list_of_deep_models = NULL)
 
 deep_model_tf <- function(x){
     x %>%
@@ -42,18 +29,18 @@ deep_model_torch <- function() nn_sequential(
   nn_linear(in_features = 2, out_features = 5, bias = F),
   nn_relu(),
   nn_dropout(p = 0.2),
-  nn_linear(in_features = 5, out_features = 3, bias = F),
+  nn_linear(in_features = 5, out_features = 3, bias = T),
   nn_relu(),
   nn_dropout(p = 0.2),
   nn_linear(in_features = 3, out_features = 1))
-
 
 options(identify_intercept = TRUE)
 
 mod_tf <- deepregression(y = y, data = airbnb,
                       list_of_formulas = 
                         list(
-                          location = ~ 1 + beds + s(accommodates, bs = "ps") +
+                          location = ~ 1 + beds +
+                            s(accommodates, bs = "ps") +
                             s(days_since_last_review, bs = "tp") +
                             deep(review_scores_rating, reviews_per_month),
                           scale = ~1),
@@ -61,11 +48,11 @@ mod_tf <- deepregression(y = y, data = airbnb,
                       list_of_deep_models = list(deep = deep_model_tf),
                       engine = "tf"
    )
-
 mod_torch <- deepregression(y = y, data = airbnb,
                          list_of_formulas = 
                            list(
-                             location = ~ 1 + beds +  s(accommodates, bs = "ps") +
+                             location = ~ 1 + beds +
+                               s(accommodates, bs = "ps") +
                                s(days_since_last_review, bs = "tp") +
                                deep(review_scores_rating, reviews_per_month),
                              scale = ~1), orthog_options = orthog_options,
@@ -74,17 +61,20 @@ mod_torch <- deepregression(y = y, data = airbnb,
                          subnetwork_builder = subnetwork_init_torch,
                          model_builder = torch_dr
                          )
+
 mod_tf %>% fit( epochs = 100, validation_split = 0.2)
 mod_torch %>% fit(epochs = 100, validation_split = 0.2)
 
 fitted_vals_tf <- mod_tf %>% fitted()
 fitted_vals_torch <- mod_torch %>% fitted()
 
-
 cor(data.frame(fitted_vals_tf, fitted_vals_torch, y))
 
 coef(mod_tf, type="linear")
 coef(mod_torch, type="linear")
+
+coef(mod_tf, type="smooth")
+coef(mod_torch, type="smooth")
 
 plot(mod_tf)
 plot(mod_torch)
@@ -256,6 +246,9 @@ fitted_tf <- mod_cnn_tf %>% fitted()
 fitted_torch <- mod_cnn_torch %>% fitted()
 plot(fitted_torch, fitted_tf)
 cor(fitted_torch, fitted_tf)
+
+mod_cnn_tf %>% predict(airbnb[1,])
+mod_cnn_torch %>% predict(airbnb[1,])
 
 library(luz)
 library(torchvision)
