@@ -180,7 +180,7 @@ layer_generator <- function(term, output_dim, param_nr, controls,
     )
   
 
-  if(!const_broadcasting) layer_args$units <- units else 
+  if(!const_broadcasting) layer_args$units <- as.integer(output_dim) else 
     layer_args$units <- controls$const_broadcasting
   layer_args$name <- name
 
@@ -251,12 +251,14 @@ int_processor <- function(term, data, output_dim, param_nr, controls, engine){
   if(engine == "torch"){
     layer_class = layer_dense_torch
     without_layer = nn_identity
+    input_shape = 1
   }
   
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
                            param_nr = param_nr, 
                            controls = controls, engine = engine, 
+                           further_layer_args = if(engine == "torch")input_shape,
                            layer_class = layer_class,
                            without_layer = without_layer)
 
@@ -280,15 +282,6 @@ int_processor <- function(term, data, output_dim, param_nr, controls, engine){
 #' @export
 lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
-  if(engine != "torch"){
-    layer_class = tf$keras$layers$Dense
-    without_layer = tf$identity
-  }
-  if(engine == "torch"){
-    layer_class = layer_dense_torch
-    without_layer = nn_identity
-  }
-  
   data_trafo <- function(indata = data)
   {
     if(attr(terms.formula(as.formula(paste0("~", term))), "intercept")==0){
@@ -300,18 +293,24 @@ lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
     }
   }
   
-  if(engine == "torch") units <- as.integer(ncol(data_trafo()))
-  if(engine == "tf") units <- as.integer(output_dim)
-
-  
+  if(engine != "torch"){
+    layer_class = tf$keras$layers$Dense
+    without_layer = tf$identity
+  }
+  if(engine == "torch"){
+    layer_class = layer_dense_torch
+    input_shape = as.integer(ncol(data_trafo()))
+    without_layer = nn_identity
+  }
   
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
                            param_nr = param_nr, 
-                           controls = controls, engine = engine,
+                           controls = controls,
+                           engine = engine,
+                           further_layer_args = if(engine == "torch") input_shape,
                            layer_class = layer_class,
-                           without_layer = without_layer,
-                           units = units)
+                           without_layer = without_layer)
   
   if(grepl("lin(.*)", term)) term <- paste(extractvar(term, allow_ia = TRUE),
                                            collapse = " + ")
@@ -341,8 +340,9 @@ gam_processor <- function(term, data, output_dim, param_nr, controls, engine){
   # extract mgcv smooth object
   P <- create_P(get_gamdata(term, param_nr, controls$gamdata, what="sp_and_S"),
                 controls$sp_scale(data))
+  
   if(engine == "torch") layer_spline <- layer_spline_torch
-  if(engine == "torch") units = dim(P)[1] else units = as.integer(output_dim)
+
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
                            param_nr = param_nr, units = units,
@@ -389,14 +389,18 @@ l1_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
   if(engine == "torch") {
     layer_class = tib_layer_torch
+    input_shape = ifelse(is.factor(data_trafo()[[1]]),
+                         yes = length(unique(data_trafo()[[1]])), 
+                         no = 1)
     without_layer = function(x, ...) 
       return(simplyconnected_layer_torch(
         la = lambda,
         #name = makelayername(term, param_nr),
-        input_shape = length(data_trafo()),
+        input_shape = input_shape,
         ...
       )(x))
-    further_layer_args <- list(la = lambda, input_shape = length(data_trafo()))
+    further_layer_args <- list(la = lambda,
+                               input_shape = input_shape)
     layer_args_names <- c("input_shape", "units", "la")
   }
   
@@ -435,7 +439,7 @@ l1_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
 }
 
-l21_processor <- function(term, data, output_dim, param_nr, controls){
+l21_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
   lambda = controls$sp_scale(data) * as.numeric(extractval(term, "la"))
   
@@ -446,6 +450,7 @@ l21_processor <- function(term, data, output_dim, param_nr, controls){
                            further_layer_args = list(group_idx = NULL, la = lambda),
                            layer_args_names = c("name", "units", "la", "group_idx"),
                            layer_class = tibgroup_layer,
+                           engine = engine
   )
   
   data_trafo <- function(indata = data) 
@@ -478,6 +483,7 @@ l2_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
   lambda = controls$sp_scale(data) * extractval(term, "la")
   
+  data_trafo = function() data[extractvar(term)]
   if(engine == "tf") {
     kernel_regularizer = tf$keras$regularizers$l2(l = lambda)
     layer_class = tf$keras$layers$Dense
@@ -489,6 +495,9 @@ l2_processor <- function(term, data, output_dim, param_nr, controls, engine){
     without_layer = nn_identity
     kernel_regularizer = list(regularizer = "l2",
                               la = lambda)
+    input_shape <- ifelse(is.factor(data_trafo()[[1]]),
+                          yes = length(unique(data_trafo()[[1]])), 
+                          no = 1)
   } 
   
   layer <- layer_generator(term = term, 
@@ -497,12 +506,13 @@ l2_processor <- function(term, data, output_dim, param_nr, controls, engine){
                            layer_class = layer_class,
                            without_layer = without_layer,
                            controls = controls,
+                           further_layer_args = if(engine == "torch") input_shape,
                            kernel_regularizer = kernel_regularizer,
                            engine = engine
   )
 
   list(
-    data_trafo = function() data[extractvar(term)],
+    data_trafo = data_trafo,
     predict_trafo = function(newdata) newdata[extractvar(term)],
     input_dim = as.integer(extractlen(term, data)),
     layer = layer,
