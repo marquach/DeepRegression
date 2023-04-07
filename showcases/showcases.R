@@ -32,18 +32,6 @@ intercept_only_torch <-  deepregression(
 attributes(intercept_only_torch$model)$class #is a luz module generator 
 # so it can handle all the stuff from luz
 
-intercept_only_torch$model <- intercept_only_torch$model  %>%
-  set_opt_hparams(lr = 0.1)
-intercept_only_torch %>% fit(epochs = 500, early_stopping = T)
-
-intercept_only_gamlss <- gamlss(formula = y ~ 1,
-                                sigma.formula = ~ 1, family = NO)
-cbind(
-  'gamlss' = c(intercept_only_gamlss$mu.coefficients,
-               intercept_only_gamlss$sigma.coefficients),
-  'torch' = c(unlist(intercept_only_torch %>% coef(which_param = 1)),
-              unlist(intercept_only_torch %>% coef(which_param = 2))))
-
 # Now with linear term but without intercept for both distribution parameters
 # The model is now correct specified, 
 # as y <- yrnorm(...,mean = 0*x, sd = exp(beta1*x))
@@ -62,8 +50,6 @@ mod_torch
 mod_torch$model <- mod_torch$model  %>% set_opt_hparams(lr = 0.1)
 # torch approach does have a generic fit function 
 mod_torch %>% fit(epochs = 500, early_stopping = T)
-
-summary(toy_gamlss)
 
 cbind(
   'gamlss' = c(toy_gamlss$mu.coefficients, toy_gamlss$sigma.coefficients),
@@ -134,13 +120,8 @@ nn_tf <- function(x) x %>%
   layer_dense(units = 32, activation = "relu", use_bias = FALSE) %>%
   layer_dense(units = 1, activation = "linear")
 
-nn_torch <- function() nn_sequential(
-  nn_linear(in_features = 3, out_features = 32, bias = F),
-  nn_relu(),
-  nn_linear(in_features = 32, out_features = 1)
-)
 
-nn_torch_mod <- nn_module(
+nn_torch <- nn_module(
   initialize = function(){
     self$fc1 <- nn_linear(in_features = 3, out_features = 32, bias = F)
     self$fc2 <-  nn_linear(in_features = 32, out_features = 1)
@@ -165,21 +146,13 @@ deep_model_torch <- deepregression(
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch"
 )
-deep_model_torch_mod <- deepregression(
-  list_of_formulas = list(loc = formula_deep, scale = ~ 1),
-  data = data, y = y, orthog_options = orthog_options,
-  list_of_deep_models = list(deep_model = nn_torch_mod),
-  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
-  engine = "torch"
-)
+
 
 deep_model_tf$model
 deep_model_torch
-deep_model_torch_mod
 
 deep_model_tf %>% fit(epochs = 500, early_stopping = F)
 deep_model_torch %>% fit(epochs = 500, early_stopping = F)
-deep_model_torch_mod %>% fit(epochs = 1000, early_stopping = F)
 
 
 
