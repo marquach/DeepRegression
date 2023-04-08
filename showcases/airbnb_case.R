@@ -4,7 +4,7 @@ library(torch)
 library(luz)
 library(torchvision)
 devtools::load_all("deepregression-main/")
-source('scripts/deepregression_functions.R')
+source('scripts_new/deepregression_functions.R')
 
 
 orthog_options = orthog_control(orthogonalize = F)
