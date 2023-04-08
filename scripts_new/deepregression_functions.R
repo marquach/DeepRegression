@@ -205,6 +205,7 @@ get_luz_dataset <- dataset(
     length(self$target)
     
   },
+  # remember that we also have nlp data (text)
   
   prepare_data = function(df_list){
     
