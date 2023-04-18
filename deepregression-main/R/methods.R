@@ -175,6 +175,8 @@ predict.deepregression <- function(
   ...
 ){
   # Setup defaults 
+  # check if it really is a good idea to always assign apply_fun
+  # problem with last if check
   if(is.null(apply_fun)) {
     if(object$engine == "tf") apply_fun = tfd_mean
     if(object$engine == "torch") apply_fun = function(x) x$mean
@@ -288,6 +290,7 @@ fit.deepregression <- function(
   validation_split = ifelse(is.null(validation_data), 0.1, 0),
   callbacks = list(),
   convertfun = function(x) tf$constant(x, dtype="float32"),
+  fast_fit = F,
   ...
 )
 {
@@ -372,7 +375,9 @@ fit.deepregression <- function(
                                validation_data = validation_data,
                                callbacks = callbacks,
                                verbose = verbose,
-                               view_metrics = view_metrics)
+                               view_metrics = view_metrics, fast_fit = fast_fit)
+    
+    if(fast_fit & object$engine == "torch") object$fit_fun <- fast_fit_function
 
     args <- append(args,
                    input_list_model[!names(input_list_model) %in%
