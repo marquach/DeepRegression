@@ -1,4 +1,87 @@
 
+# not really fast (don`t know why)
+fast_fit_function <- function(object, epochs, batch_size, data_x, data_y,
+                              validation_split){
+  
+  data_x <- lapply(data_x, FUN = function(x) lapply(x, torch_tensor))
+  data_y <- torch_tensor(data_y)$to(torch_long())
+  
+  num_data_points <- data_y$size(1)
+  
+  train_ids <- sample(1:num_data_points,
+                      size = (1-validation_split) * num_data_points)
+  valid_ids <- sample(
+    setdiff(1:num_data_points,train_ids),
+    size = validation_split * num_data_points)
+  
+
+  data_x_train <- lapply(data_x, function(x) lapply(x ,
+                                                    function(x) x[train_ids,]))
+  data_x_valid <- lapply(data_x, function(x) lapply(x ,
+                                                    function(x) x[valid_ids,]))
+  data_y_train <- data_y[train_ids]
+  data_y_valid <- data_y[valid_ids]
+  
+  num_batches_train <- floor(data_y_train$size(1)/batch_size)
+  num_batches_valid <- floor(data_y_valid$size(1)/batch_size)
+  
+  optimizer_t_manual <- optim_adam(object$model()$parameters)
+  
+  for(epoch in 1:epochs){
+    object$model()$train()
+    l_man <- c()
+    # rearrange the data each epoch
+    permute <- torch_randperm(data_y_train$size(1)) + 1L
+    data_x_train <- lapply(data_x_train, function(x) lapply(x ,
+                                                            function(x) x[permute,]))
+    data_y_train <- data_y_train[permute]
+    
+    # manually loop through the batches
+    for(batch_idx in 1:num_batches_train){
+      
+      # here index is a vector of the indices in the batch
+      index <- (batch_size*(batch_idx-1) + 1):(batch_idx*batch_size)
+      
+      x <- lapply(data_x_train, function(x) lapply(x ,
+                                                  function(x) x[index,]))
+      y <- data_y_train[index]
+      
+      optimizer_t_manual$zero_grad()
+      
+      output <- object$model()(x)
+      loss_man <- object$model()$loss(output, y)
+      loss_man$backward()
+      
+      optimizer_t_manual$step()
+      l_man <- c(l_man, loss_man$item())
+    }
+    cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l_man)))
+    
+    object$model()$eval()
+    valid_loss <- c()
+    
+    with_no_grad({
+    # manually loop through the batches
+    for(batch_idx in 1:num_batches_valid){
+      
+      # here index is a vector of the indices in the batch
+      index <- (batch_size*(batch_idx-1) + 1):(batch_idx*batch_size)
+      
+      x <- lapply(data_x_valid, function(x) lapply(x ,
+                                                    function(x) x[index,]))
+      y <- data_y_valid[index]
+      
+      output <- object$model()(x)
+      loss_val <- object$model()$loss(output, y)
+      
+      valid_loss <- c(valid_loss, loss_val$item())
+    }
+    cat(sprintf("Valid loss at epoch %d: %3f\n", epoch, mean(valid_loss)))
+    
+  })
+  }
+}
+
 simplyconnected_layer_torch <- function(la = la,
                                         multfac_initializer = torch_ones,
                                         input_shape){
@@ -176,26 +259,20 @@ get_luz_dataset <- dataset(
   "deepregression_luz_dataset",
   
   initialize = function(df_list, target = NULL, length = NULL) {
-    self$data <- self$prepare_data(df_list)
     
+    self$data <- self$setup_loader(df_list)
     self$target <- target
-    self$length <- length
-    
+    if(!is.null(length)) self$length <- length
     
   },
   
+  # has to be fast because is used very often (very sure this a bottle neck)
   .getitem = function(index) {
     
-    # am besten hier je nach typ bestimmte methode durchführen
     indexes <- lapply(self$data,
-                      function(x) lapply(x, function(y) {
-                        if(!inherits(y, "torch_tensor"))
-                          # use here also the check_data_for_image()
-                          if(check_data_for_image(y)){
-                          return(y[index,] %>% base_loader() %>%
-                                   torchvision::transform_to_tensor())}
-                        y[index,]}))
+                      function(x) lapply(x, function(y) y(index)))
     if(is.null(self$target)) return(list(indexes))
+    
     target <- self$target[index]
     list(indexes, target)
   },
@@ -205,19 +282,19 @@ get_luz_dataset <- dataset(
     length(self$target)
     
   },
-  # remember that we also have nlp data (text)
   
-  prepare_data = function(df_list){
+  setup_loader = function(df_list){
     
     lapply(df_list, function(x) 
       lapply(x, function(y){
         if((ncol(y)==1) & check_data_for_image(y)){
-          colnames(y) <- "image"
-          #print(sprintf("Found %s validated image filenames", length(y)))
-          return(y)
-          }
-        torch_tensor(y)}))
-    }
+          return( 
+            function(index) y[index,] %>% base_loader() %>%
+              transform_to_tensor())
+        }
+        function(index) torch_tensor(y[index,])
+        }))
+  }
 )
 
 
@@ -648,9 +725,19 @@ prepare_input_list_model <- function(input_x, input_y,
                                      object, epochs = 10, batch_size = 32,
                                      validation_split, validation_data = NULL,
                                      callbacks = NULL, verbose, view_metrics, 
-                                     early_stopping){
+                                     early_stopping, fast_fit=F){
   
   if(object$engine == "torch"){
+    
+    if(fast_fit) return(
+      list(object = object,
+           data_x = prepare_data_torch(pfc  = object$init_params$parsed_formulas_content,
+                                        input_x = input_x),
+           data_y = input_y,
+           epochs = epochs, 
+           batch_size = batch_size,
+           validation_split = validation_split))
+
     input_dataloader <- prepare_data_torch(
       pfc  = object$init_params$parsed_formulas_content,
       input_x = input_x,
@@ -675,7 +762,7 @@ prepare_input_list_model <- function(input_x, input_y,
     
     if(!identical(validation_split, 0) & !is.null(validation_split)){
       train_ids <- sample(1:length(input_y), 
-                          size = ceiling((1-validation_split) * length(input_y)))
+                          size = (1-validation_split) * length(input_y))
       valid_ids <- sample(setdiff(1:length(input_y), train_ids),
                           size = validation_split * length(input_y))
       
