@@ -271,10 +271,13 @@ predict_gen <- function(
     
     res <- list()[1:iter$.length()]
     i <- 1
-    coro::loop(for (b in predict_dl) {
-      res[[i]] <- convert_fun(apply_fun(object$model(b[[1]])))
-      i <- i+1
-      })
+    with_no_grad({
+      coro::loop(for (b in predict_dl) {
+        res[[i]] <- convert_fun(apply_fun(object$model(b[[1]])))
+        i <- i+1
+        })
+    })
+      
 
     #yhat <- Reduce(x = res, f = c)
     yhat <- do.call("rbind", (res))
