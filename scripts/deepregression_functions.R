@@ -95,13 +95,11 @@ simplyconnected_layer_torch <- function(la = la,
       sc <- nn_parameter(x = self$multfac_initializer(input_shape))
       
       sc$register_hook(function(grad){
-        grad + la*sc
+        grad + 2*la*sc
       })
       self$sc <- sc
     },
     
-    # muss angepasst werden
-    # wenn self$sc mehrere sind muss es transponiert werden
     forward = function(dataset_list){
       torch_multiply(
         self$sc$view(c(1, length(self$sc))),
@@ -117,12 +115,13 @@ tiblinlasso_layer_torch <- function(la, input_shape = 1, units = 1,
   la <- torch_tensor(la)
   tiblinlasso_layer <- nn_linear(in_features = input_shape,
                                  out_features = units, bias = F)
+  
   if (kernel_initializer == "he_normal") {
     nn_init_kaiming_normal_(tiblinlasso_layer$parameters$weight)
   }
   
   tiblinlasso_layer$parameters$weight$register_hook(function(grad){
-    grad + la*tiblinlasso_layer$parameters$weight
+    grad + 2*la*tiblinlasso_layer$parameters$weight
   })
   tiblinlasso_layer
 }
