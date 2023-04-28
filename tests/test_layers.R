@@ -8,7 +8,7 @@ library(luz)
 library(tictoc)
 library(glmnet)
 
-source("scripts_new/deepregression_functions.R")
+source("scripts/deepregression_functions.R")
 devtools::load_all("deepregression-main/")
 
 # TF is used as benchmark as this was already implemented
@@ -174,7 +174,7 @@ lasso_test_tf$model$optimizer$lr <- tf$Variable(1e-2, name = "learning_rate")
 lasso_test_torch %>% fit(epochs = 100, early_stopping = T,
                          validation_split = 0.1, batch_size = 256,
                          fast_fit = F)
-lasso_test_tf %>% fit(epochs = 1000, early_stopping = F, validation_split = 0.1,
+lasso_test_tf %>% fit(epochs = 100, early_stopping = F, validation_split = 0.1,
                       batch_size = 256)
 
 cbind("tf" = lasso_test_tf %>% coef(),
