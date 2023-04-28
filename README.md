@@ -8,9 +8,9 @@ By combining additive models and neural networks, it becomes possible to expand 
 - plot estimated non-linear functions; (DONE)
 - predict on unseen data; (DONE)
 - perform cross-validation; (DONE)
-- specify a variety of different distribution for distribution learning;
-- compute deep ensembles of semi-structured regression models;
-- specify models for and learn with multi-modal data sets (e.g., image data combined with tabular data).
+- specify a variety of different distribution for distribution learning; (DONE)
+- compute deep ensembles of semi-structured regression models; (DONE)
+- specify models for and learn with multi-modal data sets (e.g., image data combined with tabular data). (DONE)
 
 The thesis will demonstrate the efficacy of this framework and compare it to existing software implementation deepregression through numerical experiments, while also highlighting its special merits in a real-world application on the airbnb dataset. 
 
