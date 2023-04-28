@@ -437,11 +437,74 @@ from_preds_to_dist_torch <- function(
     mapping = NULL, # not implemented
     from_family_to_distfun = make_torch_dist,
     from_distfun_to_dist = distfun_to_dist_torch,
-    #add_layer_shared_pred = function(x, units) layer_dense_torch(x, units = units,
-    #                                                       use_bias = FALSE),
-    trafo_list = NULL){
+    add_layer_shared_pred = function(input_shape, units) 
+      layer_dense_torch(input_shape = input_shape, units = units,
+                                                           use_bias = FALSE),
+    trafo_list = NULL, mapping_now = F){
   
-  nr_params <- length(list_pred_param)
+  # i think its better to do combination later,
+  # because if i do it different i have to load data for layer as often as i have layers
+  # till now my dataloader is not very smart
+  if(mapping_now){
+    if(!is.null(mapping)){
+    
+    lpp <- list_pred_param
+    list_pred_param <- list()
+    nr_params <- max(unlist(mapping))
+    
+    if(!is.null(add_layer_shared_pred)){
+      
+      len_map <- sapply(mapping, length)
+      multiple_param <- which(len_map>1)
+      
+      for(ind in multiple_param){
+        amount_layers <- length(lpp[[ind]][[1]]$children)
+        # add units (not implemented JUST COPIED)
+        if(lpp[[ind]][[1]][[amount_layers]]$weight$shape[1] < len_map[ind]){
+          # less units than needed => add layer and then split
+          
+          #input_shape <- lpp[[ind]][[1]][[amount_layers]]$weight$size()[2]
+          #lpp[[ind]] <- torch_cat(
+          #  tensors = list(lpp[[ind]][[1]][[amount_layers]]$weight,
+           #                add_layer_shared_pred(input_shape = input_shape,
+          #                                       units = len_map[ind]*output_dim)
+          #                 ))
+        } else if(lpp[[ind]][[1]][[amount_layers]]$weight$shape[1] == 
+                  len_map[ind]){
+          # not sure if good idea
+          # maybe better add in model_torch mapping
+          lpp[[ind]] <- lapply(seq_len(len_map[ind]), function(x){
+            split_torch(module = lpp[[ind]][[1]], index = x)})
+    
+        }else{
+          # more units than needed
+          stop("Node ", lpp[[ind]]$name, " has more units than defined by the mapping.\n",
+               "  Does your deep neural network has the correct output dimensions?")
+        }
+        
+      }
+      
+      lpp <- unlist(lpp, recursive = FALSE)
+      mapping <- as.list(unlist(mapping))
+      
+    }
+    
+    # store names as they are obstructive later
+    names_lpp <- names(lpp)
+    lpp <- unname(lpp)
+    
+    for(i in 1:nr_params){
+      list_pred_param[[i]] <- unlist(
+        lpp[which(sapply(mapping, function(mp) i %in% mp))])
+    }
+    
+    if(!is.null(names_lpp)) names(list_pred_param) <- names_lpp[1:nr_params]
+    
+  }}else{
+    
+    nr_params <- length(list_pred_param)
+    
+  }
   
   # check family
   if(!is.null(family)){
@@ -456,7 +519,7 @@ from_preds_to_dist_torch <- function(
   nrparams_dist <- attr(dist_fun, "nrparams_dist")
   if(is.null(nrparams_dist)) nrparams_dist <- nr_params
   
-  if(nrparams_dist < nr_params)
+  if(nrparams_dist < nr_params & is.null(mapping))
   {
     warning("More formulas specified than parameters available.",
             " Will only use ", nrparams_dist, " formula(e).")
@@ -502,6 +565,16 @@ from_distfun_to_dist_torch <- function(dist_fun, preds){
         1:length(self[[1]]), function(x){
           self[[1]][[x]](dataset_list[[x]])
         })
+      
+      if(any(names(self[[1]]$.__enclos_env__$private$modules_) == "both")){
+        distribution_parameters <- torch_sum(torch_stack(
+            list(
+              torch_cat(distribution_parameters[-length(self[[1]])],
+                      dim = 2),
+              distribution_parameters[[length(self[[1]])]])),
+            dim = 1)
+        distribution_parameters <- 
+          torch_split(distribution_parameters,split_size = 1, dim = 2) }
       dist_fun(distribution_parameters)
     }
   )
@@ -588,7 +661,9 @@ family_to_trochd <- function(family){
   # define dist_fun
   torchd_dist <- switch(family,
                         normal = distr_normal,
-                        bernoulli = distr_bernoulli, 
+                        bernoulli = function(logits)
+                          distr_bernoulli(logits = logits),
+                        bernoulli_prob = distr_bernoulli,
                         gamma = distr_gamma,
                         poisson = distr_poisson)
 }
@@ -606,6 +681,7 @@ family_to_trafo_torch <- function(family, add_const = 1e-8){
                        normal = list(function(x) x,
                                      function(x) torch_add(add_const, torch_exp(x))),
                        bernoulli = list(function(x) x),
+                       bernoulli_prob = list(function(x) torch_sigmoid(x)),
                        gamma = list(
                          function(x) torch_add(add_const, torch_exp(x)),
                          function(x) torch_add(add_const, torch_exp(x))),
@@ -673,7 +749,7 @@ from_dist_to_loss_torch <- function(family, weights = NULL){
   
   # the negative log-likelihood is given by the negative weighted
   # log probability of the dist
-  if(family != "normal") stop("Only normal distribution tested")
+  #if(family != "normal") stop("Only normal distribution tested")
   negloglik <- function(input, target) torch_mean(-input$log_prob(target))
   negloglik
   }
@@ -701,7 +777,7 @@ prepare_data_torch <- function(pfc, input_x, target = NULL){
   
   if(is.null(target)) return(df_list)
   
-  get_luz_dataset(df_list = df_list, target = torch_tensor(target))
+  get_luz_dataset(df_list = df_list, target = torch_tensor(target)$to(torch_float()))
 
     
 }
@@ -722,7 +798,7 @@ get_weights_torch <- function(model){
 
 prepare_input_list_model <- function(input_x, input_y,
                                      object, epochs = 10, batch_size = 32,
-                                     validation_split, validation_data = NULL,
+                                     validation_split = 0, validation_data = NULL,
                                      callbacks = NULL, verbose, view_metrics, 
                                      early_stopping, fast_fit=F){
   
@@ -812,6 +888,8 @@ prepare_input_list_model <- function(input_x, input_y,
       input_list_model}
     }
 
-
+weight_reset <-  function(m) {
+  try(m$reset_parameters(), silent = T)
+}
 
   
