@@ -282,6 +282,9 @@ int_processor <- function(term, data, output_dim, param_nr, controls, engine){
 #' @export
 lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
+  if(grepl("lin(.*)", term)) term <- paste(extractvar(term, allow_ia = TRUE),
+                                           collapse = " + ")
+  
   data_trafo <- function(indata = data)
   {
     if(attr(terms.formula(as.formula(paste0("~", term))), "intercept")==0){
@@ -293,7 +296,7 @@ lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
     }
   }
   
-  if(engine != "torch"){
+  if(engine == "tf"){
     layer_class = tf$keras$layers$Dense
     without_layer = tf$identity
   }
@@ -312,8 +315,7 @@ lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
                            layer_class = layer_class,
                            without_layer = without_layer)
   
-  if(grepl("lin(.*)", term)) term <- paste(extractvar(term, allow_ia = TRUE),
-                                           collapse = " + ")
+
   
   
   
