@@ -189,8 +189,6 @@ get_ensemble_distribution <- function(object, data = NULL, topK = NULL, ...) {
     stop("Weights were not saved. Consider running `ensemble` with `save_weights = TRUE`.")
 
   dists <- .call_for_all_members(object, get_distribution, data = data)
-
-  if(class(dists[[1]])[1] != "torch_Normal") stop("only implemented for gaussian")
   
   if(object$engine == "tf") shp <- dists[[1]]$shape$as_list()
   if(object$engine == "torch") shp <- dists[[1]]$batch_shape[1]
@@ -204,16 +202,14 @@ get_ensemble_distribution <- function(object, data = NULL, topK = NULL, ...) {
 
   
   if(object$engine == "tf") mix_dist <- tfd_mixture(dcat, dists)
-  
-  #prepare torch distribution for mixture
-  loc_test <- torch_cat(lapply(dists, function(x) x$mean), dim = 2L)
-  scale_test <- torch_cat(lapply(dists, function(x) x$scale), dim = 2L)
-  
-  dists_test <- distr_normal(loc = loc_test, scale = scale_test)
-  
-  
-  if(object$engine == "torch") mix_dist <- distr_mixture_same_family(dcat, dists_test)
-  
+  if(object$engine == "torch"){
+    
+    used_distr <- family_to_trochd(family = object$init_params$family)
+    distr_parameters <- prepare_torch_distr_mixdistr(object, dists)
+    dists <- do.call(used_distr, distr_parameters)
+    mix_dist <- distr_mixture_same_family(dcat, dists)
+  }
+
 
   if(object$engine == "tf") set_weights(object$model, original_weights)
   if(object$engine == "torch") object$model()$load_state_dict(original_weights)
@@ -264,6 +260,7 @@ coef.drEnsemble <- function(object, which_param = 1, type = NULL, ...) {
 #' @export
 #'
 fitted.drEnsemble <- function(object, apply_fun = tfd_mean, ...) {
+  if(object$engine == "torch")  apply_fun = function(x) x$mean
   .call_for_all_members(object, fitted.deepregression,
                         apply_fun = apply_fun,
                         ... = ...)
