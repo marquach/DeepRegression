@@ -36,10 +36,8 @@ mod_torch <- deepregression(
 
 ens_tf <- ensemble(mod_tf, n_ensemble = 2, epochs = 2, early_stopping = TRUE,
                     validation_split = 0.2)
-ens_torch <- ensemble(mod_torch, n_ensemble = 2, epochs = 1, early_stopping = TRUE,
+ens_torch <- ensemble(mod_torch, n_ensemble = 2, epochs = 2, early_stopping = TRUE,
                    validation_split = 0.2, verbose = T)
-ens_tf
-ens_torch
 
 debugonce(get_ensemble_distribution)
 ensemble_distr_tf <- get_ensemble_distribution(ens_tf, data = airbnb)
@@ -50,4 +48,5 @@ ensemble_distr_torch <- get_ensemble_distribution(ens_torch)
 ensemble_distr_torch$sample()
 
 
-
+coef(ens_torch)
+fitted(ens_torch)
