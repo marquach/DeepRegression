@@ -39,14 +39,14 @@ ens_tf <- ensemble(mod_tf, n_ensemble = 2, epochs = 2, early_stopping = TRUE,
 ens_torch <- ensemble(mod_torch, n_ensemble = 2, epochs = 2, early_stopping = TRUE,
                    validation_split = 0.2, verbose = T)
 
-debugonce(get_ensemble_distribution)
 ensemble_distr_tf <- get_ensemble_distribution(ens_tf, data = airbnb)
 ensemble_distr_tf$sample()
+ensemble_distr_tf$mean()
 
-debugonce(get_ensemble_distribution)
 ensemble_distr_torch <- get_ensemble_distribution(ens_torch)
 ensemble_distr_torch$sample()
-
+# not implemented
+ensemble_distr_torch$mean()
 
 coef(ens_torch)
 fitted(ens_torch)
