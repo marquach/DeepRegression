@@ -148,6 +148,38 @@ tib_layer_torch <-
     }
   )
 
+tibgroup_layer_torch <-
+  nn_module(
+    classname = "TibGroupLasso_torch",
+    initialize = function(units, group_idx=NULL, la = 0, input_shape,
+                          kernel_initializer = "torch_ones", 
+                          multfac_initializer = "he_normal"){
+      
+      self$units = units
+      self$la = la
+      self$group_idx <- group_idx
+      self$kernel_regularizer$regularizer <- "l2"
+      self$kernel_regularizer$la <- la
+      self$kernel_initializer = kernel_initializer
+      self$multfac_initializer = multfac_initializer
+      
+      if(is.null(self$group_idx)){
+        self$fc <- layer_dense_torch(input_shape = 1, units = 1,
+                          kernel_regularizer = self$kernel_regularizer,
+                          kernel_initializer = self$kernel_initializer, use_bias = F)
+        
+        self$gc <- layer_dense_torch(input_shape = input_shape, units = 1,
+                                     kernel_regularizer = self$kernel_regularizer,
+                                     kernel_initializer = self$multfac_initializer,
+                                     use_bias = F)
+      } #else not sure
+      
+      
+    },
+    forward = function(data_list){
+      self$fc(self$gc(data_list))
+    }
+  )
 
 
 
@@ -172,18 +204,23 @@ layer_dense_torch <- function(input_shape, units = 1L, name, trainable = TRUE,
       gain = nn_init_calculate_gain(nonlinearity = "linear"))
   }
   
+  if (kernel_initializer == "torch_ones") {
+    nn_init_ones_(layer$parameters$weight)
+  }
+  
   if(!trainable) layer$parameters$weight$requires_grad = FALSE
   
   if(!is.null(kernel_regularizer)){
     
     if(kernel_regularizer$regularizer == "l2") {
       layer$parameters$weight$register_hook(function(grad){
-        grad + (kernel_regularizer$la)*(layer$parameters$weight)
+        grad + 2*(kernel_regularizer$la)*(layer$parameters$weight)
       })
     }}
   
   layer
 }
+
 
 
 
