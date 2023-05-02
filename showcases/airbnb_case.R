@@ -4,8 +4,7 @@ library(torch)
 library(luz)
 library(torchvision)
 devtools::load_all("deepregression-main/")
-source('scripts_new/deepregression_functions.R')
-
+source('scripts/deepregression_functions.R')
 
 orthog_options = orthog_control(orthogonalize = F)
 
@@ -34,12 +33,10 @@ deep_model_torch <- function() nn_sequential(
   nn_dropout(p = 0.2),
   nn_linear(in_features = 3, out_features = 1))
 
-options(identify_intercept = TRUE)
-
 mod_tf <- deepregression(y = y, data = airbnb,
                       list_of_formulas = 
                         list(
-                          location = ~ 1 + beds +
+                          location = ~ -1 + beds +
                             s(accommodates, bs = "ps") +
                             s(days_since_last_review, bs = "tp") +
                             deep(review_scores_rating, reviews_per_month),
@@ -51,7 +48,7 @@ mod_tf <- deepregression(y = y, data = airbnb,
 mod_torch <- deepregression(y = y, data = airbnb,
                          list_of_formulas = 
                            list(
-                             location = ~ 1 + beds +
+                             location = ~ -1 + beds +
                                s(accommodates, bs = "ps") +
                                s(days_since_last_review, bs = "tp") +
                                deep(review_scores_rating, reviews_per_month),
@@ -62,38 +59,50 @@ mod_torch <- deepregression(y = y, data = airbnb,
                          model_builder = torch_dr
                          )
 
-mod_tf %>% fit( epochs = 100, validation_split = 0.2)
-mod_torch %>% fit(epochs = 100, validation_split = 0.2)
+mod_tf %>% fit(epochs = 500, validation_split = 0.2)
+mod_torch %>% fit(epochs = 500, validation_split = 0.2)
+#mod_torch %>% fit(epochs = 100, validation_split = 0.2, fast_fit = T)
 
 fitted_vals_tf <- mod_tf %>% fitted()
 fitted_vals_torch <- mod_torch %>% fitted()
 
 cor(data.frame(fitted_vals_tf, fitted_vals_torch, y))
 plot(fitted_vals_tf, fitted_vals_torch)
-
+abline(a = 0,b = 1)
 
 coef(mod_tf)
 coef(mod_torch)
 
-coef(mod_tf, type="linear")
-coef(mod_torch, type="linear")
+cbind(unlist(coef(mod_tf, type="linear")),
+      unlist(coef(mod_torch, type="linear")))
 
 coef(mod_tf, type="smooth")
 coef(mod_torch, type="smooth")
+
+cbind(coef(mod_tf, type="smooth")[[1]],
+      coef(mod_torch, type="smooth")[[1]])
+
+cbind(coef(mod_tf, type="smooth")[[2]],
+      coef(mod_torch, type="smooth")[[2]])
 
 coef(mod_tf, which_param = 1)
 coef(mod_tf, which_param = 2)
 coef(mod_torch, which_param = 1)
 coef(mod_torch, which_param = 2)
 
-plot(mod_tf)
-plot(mod_torch)
+plot(mod_tf, which = 2)
+plot(mod_torch,  which = 2)
 
 test1 <- plot(mod_torch, only_data = T); str(test1,1)
 test2 <- plot(mod_tf, only_data = T); str(test2,1)
 
-res_cv_tf <- mod_tf %>% cv(epochs = 2)
-res_cv_torch <- mod_torch %>% cv(epochs = 2)
+cbind(test1$`s(days_since_last_review, bs = "tp")`[[4]], 
+      test2$`s(days_since_last_review, bs = "tp")`[[4]])
+# coefs quite different
+
+# Cross validation
+res_cv_tf <- mod_tf %>% cv(plot = F, cv_folds = 3, epochs = 100)
+res_cv_torch <- mod_torch %>% cv(plot = F, cv_folds = 3, epochs = 100)
 
 dist_tf <- mod_tf %>% get_distribution()
 dist_torch <- mod_torch %>% get_distribution()
@@ -125,6 +134,76 @@ plot(xseq, sapply(xseq, function(x) c(
   as.matrix(exp(dist1_torch$log_prob(x))))),
   type="l", ylab = "density(price)", xlab = "price")
 abline(v = c(q05_tf, meanval_tf, q95_tf), col="red", lty=2)
+
+# shared dnn
+
+# load  and prepare data
+airbnb_texts <- readRDS("/Users/marquach/Desktop/R_Projects/semi-structured_distributional_regression/application/munich_clean_text.RDS")
+airbnb_texts$days_since_last_review <- as.numeric(
+  difftime(airbnb$date, airbnb$last_review)
+)
+y = log(airbnb_texts$price)
+
+airbnb_texts_torch <- airbnb_texts
+airbnb_texts_torch$texts <- airbnb_texts_torch$texts+1L 
+
+embd_mod_tf <- function(x) x %>%
+  layer_embedding(input_dim = 1000,
+                  output_dim = 100) %>%
+  layer_lambda(f = function(x) k_mean(x, axis = 2)) %>%
+  layer_dense(20, activation = "tanh") %>%
+  layer_dropout(0.3) %>%
+  layer_dense(2)
+
+shared_dnn_tf <- deepregression(
+  y = y,
+  list_of_formulas = list(
+    location = ~ 1,
+    scale = ~ 1,
+    both = ~ 0 + embd_mod(texts)
+  ),
+  mapping = list(1, 2, 1:2),
+  list_of_deep_models = list(embd_mod = embd_mod_tf),
+  data = airbnb_texts
+)
+
+embd_mod_torch <- nn_module(
+  classname = "embd_torch_test",
+  initialize = function(){
+    self$embedding <- nn_embedding(num_embeddings =  1000,
+                                   embedding_dim = 100)
+    self$fc1 <-   nn_linear(in_features = 100, out_features = 20)
+    self$fc2 <-   nn_linear(in_features = 20, out_features = 2)
+  },
+  forward = function(x){
+    x %>% self$embedding() %>%  torch_mean(dim = 2) %>%
+      self$fc1() %>% torch_tanh() %>% nnf_dropout(0.3) %>% self$fc2()
+    
+  })
+
+shared_dnn_torch <- deepregression(
+  y = y,
+  list_of_formulas = list(
+    location = ~ 1,
+    scale = ~ 1,
+    both = ~ 0 + embd_mod(texts)),
+  engine = "torch",
+  mapping = list(1, 2, 1:2),
+  list_of_deep_models = list(embd_mod = embd_mod_torch),
+  orthog_options = orthog_options,
+  data = airbnb_texts_torch,
+  subnetwork_builder = subnetwork_init_torch,
+  model_builder = torch_dr
+)
+
+shared_dnn_tf %>% fit(epochs = 500, validation_split = 0)
+shared_dnn_torch %>% fit(epochs = 500, validation_split = 0)
+
+plot(shared_dnn_tf %>% fitted(),
+     shared_dnn_torch %>% fitted()
+)
+
+
 
 # working with images
 airbnb$image <- paste0("/Users/marquach/Desktop/R_Projects/semi-structured_distributional_regression/application/airbnb/data/pictures/32/",
@@ -172,7 +251,6 @@ cnn_torch <- cnn_block_torch(
   rate = 0.25,
   shape(200, 200, 3)
 )
-cnn_torch()
 
 cnn_tf <- cnn_block_tf(
    filters = 16,
@@ -203,7 +281,6 @@ deep_model_cnn_torch <- function(){
     nn_dropout(p = 0.5),  
     nn_linear(32, 1) )
 }
-deep_model_cnn_torch()
 
 mod_cnn_tf <- deepregression(
    y = y,
@@ -228,13 +305,15 @@ mod_cnn_torch <- deepregression(
   list_of_deep_models = list(deep_model_cnn =
                                list(deep_model_cnn_torch, c(200,200,3))))
 
+
 mod_cnn_tf %>% fit(
-   epochs = 100, batch_size = 56,
+   epochs = 20, batch_size = 56,
    early_stopping = F)
 
 mod_cnn_torch %>% fit(
-  epochs = 100, batch_size = 56,
+  epochs = 1, batch_size = 56,
   early_stopping = F)
+
 
 fitted_tf <- mod_cnn_tf %>% fitted()
 fitted_torch <- mod_cnn_torch %>% fitted()
