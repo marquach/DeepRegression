@@ -1,3 +1,7 @@
+library(torch)
+library(luz)
+library(caret)
+
 devtools::load_all("deepregression-main/")
 source("scripts/deepregression_functions.R")
 set.seed(42)
@@ -7,7 +11,7 @@ x <- sample(1:3, size = 1000, replace = T)
 x <- as.factor(x)
 x <- data.frame(x)
 
-x_help <- caret::dummyVars(" ~ .", data = x)
+x_help <- dummyVars(" ~ .", data = x)
 x_onehot <- data.frame(predict(x_help, newdata = x))
 beta <- c(2,5,2)
 
