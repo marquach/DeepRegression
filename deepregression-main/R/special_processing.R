@@ -88,6 +88,9 @@ process_terms <- function(
                         simplify = !parsing_options$check_form)
     args$controls <- controls 
     args$controls$procs <- procs
+    #args$controls$intercept_included <- any(
+    #  lapply(list_terms, function(x) x$term) == "(Intercept)")
+    
     if(is.null(spec)){
       if(args$term=="(Intercept)")
         result[[i]] <- c(list_terms[[i]], do.call(procs[["int"]], args)) else
@@ -284,6 +287,8 @@ lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
   if(grepl("lin(.*)", term)) term <- paste(extractvar(term, allow_ia = TRUE),
                                            collapse = " + ")
+  #if(controls$intercept_included) term <- paste0("1+", term)
+  #if(!controls$intercept_included) term <- paste0("0+", term)
   
   data_trafo <- function(indata = data)
   {
@@ -305,7 +310,8 @@ lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
     input_shape = as.integer(ncol(data_trafo()))
     without_layer = nn_identity
   }
-  
+  #exclude intercept info again
+  #controls <- controls[-length(controls)]
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
                            param_nr = param_nr, 
@@ -387,13 +393,13 @@ l1_processor <- function(term, data, output_dim, param_nr, controls, engine){
     layer_args_names <- c("name", "units", "la")
   }
   
-  data_trafo <- function() data[extractvar(term)]
+  data_trafo <- function(indata = data) 
+    model.matrix(object = as.formula(paste0("~ 1 + ", extractvar(term))), 
+                 data = indata)[,-1,drop=FALSE]
   
   if(engine == "torch") {
     layer_class = tib_layer_torch
-    input_shape = ifelse(is.factor(data_trafo()[[1]]),
-                         yes = length(unique(data_trafo()[[1]])), 
-                         no = 1)
+    input_shape = ncol(data_trafo())
     without_layer = function(x, ...) 
       return(simplyconnected_layer_torch(
         la = lambda,
@@ -426,7 +432,11 @@ l1_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
   list(
     data_trafo = data_trafo,
-    predict_trafo = function(newdata) newdata[extractvar(term)],
+    predict_trafo =  function(newdata){ 
+      return(
+        data_trafo(as.data.frame(newdata))
+      )
+    },
     input_dim = as.integer(extractlen(term, data)),
     layer = layer,
     coef = function(weights){ 
@@ -445,19 +455,35 @@ l21_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
   lambda = controls$sp_scale(data) * as.numeric(extractval(term, "la"))
   
-  layer <- layer_generator(term = term, 
-                           output_dim = output_dim, 
-                           param_nr = param_nr, 
-                           controls = controls,
-                           further_layer_args = list(group_idx = NULL, la = lambda),
-                           layer_args_names = c("name", "units", "la", "group_idx"),
-                           layer_class = tibgroup_layer,
-                           engine = engine
-  )
+  if(engine == "tf") {
+    layer_class = tibgroup_layer
+    further_layer_args = list(group_idx = NULL, la = lambda)
+    layer_args_names = c("name", "units", "la", "group_idx")
+  }
   
   data_trafo <- function(indata = data) 
     model.matrix(object = as.formula(paste0("~ 1 + ", extractvar(term))), 
                  data = indata)[,-1,drop=FALSE]
+  
+  if(engine == "torch") {
+    layer_class = tibgroup_layer_torch
+    input_shape = ncol(data_trafo())
+    further_layer_args = list(group_idx = NULL, la = lambda,
+                              input_shape = input_shape)
+    layer_args_names = c("input_shape", "units", "la", "group_idx")
+  }
+  
+  
+  
+  layer <- layer_generator(term = term, 
+                           output_dim = output_dim, 
+                           param_nr = param_nr, 
+                           controls = controls,
+                           further_layer_args = further_layer_args,
+                           layer_args_names = layer_args_names,
+                           layer_class = layer_class,
+                           engine = engine
+  )
   
   list(
     data_trafo = function() data_trafo(),
