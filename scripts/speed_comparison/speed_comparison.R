@@ -137,8 +137,6 @@ model_t$parameters
 pre_fit()$parameters
 model_keras$weights
 
-
-
 deepreg_gam_tf = deepregression(
   list_of_formulas = list(loc = ~ 1 + s(times), scale = ~ 1),
   data = mcycle, y = mcycle$accel, orthog_options = orthog_options,
@@ -149,17 +147,96 @@ deepreg_gam_torch <- deepregression(
   subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch")
 
-deepreg_benchmark <- benchmark(
+epochs <- 100
+deepreg_gam_benchmark <- benchmark(
   "tf" = deepreg_gam_tf %>% fit(epochs = epochs, early_stopping = F,
-                                validation_split = 0, verbose = F),
+                                validation_split = 0.1, verbose = F, batch_size = 32),
   "torch" = deepreg_gam_torch %>% fit(epochs = epochs, early_stopping = F,
-                                validation_split = 0, verbose = F), 
+                                validation_split = 0.1, verbose = F, batch_size = 32), 
   columns = c("test", "elapsed", "relative"),
   order = "elapsed",
-  replications = 2
+  replications = 1
 )
-deepreg_benchmark
+deepreg_gam_benchmark
 
-speed_comparison <- list(deepreg_benchmark, plain_benchmark)
-save(speed_comparison, file= "scripts/speed_comparison/speed_comparison_dev_version.RData")
+# now test speed of different structures ((un|semi)-structured)
+# structures make no difference 
+# size of dataset plays huge role => think about getitem() again
+# compare size n=100 to n=1000
+set.seed(42)
+n <- 100
+data = data.frame(matrix(rnorm(4*n), c(n,4)))
+colnames(data) <- c("x1","x2","x3","xa")
+y <- rnorm(n) + data$xa^2 + data$x1
+
+nn_tf <- function(x) x %>%
+  layer_dense(units = 32, activation = "relu", use_bias = FALSE) %>%
+  layer_dense(units = 1, activation = "linear")
+
+nn_torch <- nn_module(
+  initialize = function(){
+    self$fc1 <- nn_linear(in_features = 3, out_features = 32, bias = F)
+    self$fc2 <-  nn_linear(in_features = 32, out_features = 1)
+  },
+  forward = function(x){
+    x %>% self$fc1() %>% nnf_relu() %>% self$fc2()
+  }
+)
+
+formula <- ~ 1 + deep_model(x1,x2,x3) + s(xa) + x1
+
+semi_structured_tf <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y,orthog_options = orthog_options,
+  list_of_deep_models = list(deep_model = nn_tf), engine = "tf"
+)
+
+semi_structured_torch <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options,
+  list_of_deep_models = list(deep_model = nn_torch),
+  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
+  engine = "torch"
+)
+
+deepreg_semistruc_benchmark_n100 <- benchmark(
+  "tf" = semi_structured_tf %>% fit(epochs = epochs, early_stopping = F,
+                                validation_split = 0.1, verbose = F),
+  "torch" = semi_structured_torch %>% fit(epochs = epochs, early_stopping = F,
+                                      validation_split = 0.1, verbose = F), 
+  columns = c("test", "elapsed", "relative"),
+  order = "elapsed",
+  replications = 1
+)
+
+set.seed(42)
+n <- 1000
+data = data.frame(matrix(rnorm(4*n), c(n,4)))
+colnames(data) <- c("x1","x2","x3","xa")
+y <- rnorm(n) + data$xa^2 + data$x1
+
+semi_structured_tf <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y,orthog_options = orthog_options,
+  list_of_deep_models = list(deep_model = nn_tf), engine = "tf")
+
+semi_structured_torch <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options,
+  list_of_deep_models = list(deep_model = nn_torch),
+  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
+  engine = "torch")
+
+deepreg_semistruc_benchmark_n1000 <- benchmark(
+  "tf" = semi_structured_tf %>% fit(epochs = epochs, early_stopping = F,
+                                    validation_split = 0.1, verbose = F),
+  "torch" = semi_structured_torch %>% fit(epochs = epochs, early_stopping = F,
+                                          validation_split = 0.1, verbose = F), 
+  columns = c("test", "elapsed", "relative"),
+  order = "elapsed",
+  replications = 1
+)
+
+list(n100 = deepreg_semistruc_benchmark_n100,
+     n1000 = deepreg_semistruc_benchmark_n1000)
 
