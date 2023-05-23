@@ -86,7 +86,6 @@ ensemble.deepregression <- function(
                             engine = x$engine)
     
     if(x$engine == "torch"){
-    # dataloader for ensemble needs to be added
     input_list_model <- 
       prepare_input_list_model(input_x = x_train,
                                input_y = x$init_params$y,
@@ -95,7 +94,6 @@ ensemble.deepregression <- function(
                                verbose = verbose,
                                view_metrics = view_metrics,
                                ...)
-    # something like this
     }
     
     # make callbacks
@@ -193,7 +191,8 @@ get_ensemble_distribution <- function(object, data = NULL, topK = NULL, ...) {
   if(object$engine == "tf") shp <- dists[[1]]$shape$as_list()
   if(object$engine == "torch") shp <- dists[[1]]$batch_shape[1]
   
-  if(object$engine == "tf") probs <- k_constant(1 / topK, shape = c(shp, n_ensemble))
+  if(object$engine == "tf") probs <- k_constant(1 / topK,
+                                                shape = c(shp, n_ensemble))
   if(object$engine == "torch") probs <- torch_full(size =  c(shp, n_ensemble),
                                                    fill_value = 1 / topK)
   
@@ -202,8 +201,8 @@ get_ensemble_distribution <- function(object, data = NULL, topK = NULL, ...) {
 
   
   if(object$engine == "tf") mix_dist <- tfd_mixture(dcat, dists)
+  
   if(object$engine == "torch"){
-    
     used_distr <- family_to_trochd(family = object$init_params$family)
     distr_parameters <- prepare_torch_distr_mixdistr(object, dists)
     dists <- do.call(used_distr, distr_parameters)
