@@ -172,8 +172,7 @@ lasso_test_torch$model <- lasso_test_torch$model  %>% set_opt_hparams(lr = 1e-2)
 lasso_test_tf$model$optimizer$lr <- tf$Variable(1e-2, name = "learning_rate")
 
 lasso_test_torch %>% fit(epochs = 100, early_stopping = T,
-                         validation_split = 0.1, batch_size = 256,
-                         fast_fit = F)
+                         validation_split = 0.1, batch_size = 256)
 lasso_test_tf %>% fit(epochs = 100, early_stopping = F, validation_split = 0.1,
                       batch_size = 256)
 
