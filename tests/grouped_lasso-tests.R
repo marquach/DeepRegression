@@ -74,7 +74,7 @@ for(epoch in 1:epochs){
   
   cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l)))
 }
-
+tibgroup_module$parameters
 cbind(
   as.array(mod$weights[[1]] * mod$weights[[2]]),
   as.array((tibgroup_module$parameters[[1]] * tibgroup_module$parameters[[2]])$t()))
@@ -86,16 +86,18 @@ gr$beta
 
 # now with deepregression
 # la gets multiplied by 1/nrow(). So i multipy by 1000 to get a lambda of 1
-mod_tf <- deepregression(y = y, data = x,
+gr_lasso_mod_tf <- deepregression(y = y, data = x,
                          list_of_formulas = 
                            list(
-                             location = ~ 1 + grlasso(x, la  = 1000), # controls$sp_scale
+                             location = ~ 1 + grlasso(x, la  = 1000), 
+                             # controls$sp_scale
                              scale = ~1),
                          orthog_options = orthog_control(orthogonalize = F),
                          engine = "tf")
 
-mod_tf %>% fit(epochs = 250, validation_split = 0.2, early_stopping = F)
-mod_torch <- deepregression(y = y, data = x,
+gr_lasso_mod_tf %>% fit(epochs = 250, validation_split = 0.2,
+                        early_stopping = F)
+gr_lasso_mod_torch <- deepregression(y = y, data = x,
                          list_of_formulas = 
                            list(
                              location = ~ 1 + grlasso(x, la  = 1000),
@@ -104,7 +106,7 @@ mod_torch <- deepregression(y = y, data = x,
                          engine = "torch",
                          subnetwork_builder = subnetwork_init_torch,
                          model_builder = torch_dr)
-mod_torch %>% fit(epochs = 250, validation_split = 0.1, early_stopping = T)
+gr_lasso_mod_torch %>% fit(epochs = 250, validation_split = 0.1, early_stopping = T)
 
-cbind((mod_tf %>% coef())[[1]],
-      (mod_torch %>% coef())[[1]])
+cbind((gr_lasso_mod_tf %>% coef())[[1]],
+      (gr_lasso_mod_torch %>% coef())[[1]])
