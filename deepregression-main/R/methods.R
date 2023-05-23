@@ -290,7 +290,7 @@ fit.deepregression <- function(
   validation_split = ifelse(is.null(validation_data), 0.1, 0),
   callbacks = list(),
   convertfun = function(x) tf$constant(x, dtype="float32"),
-  fast_fit = F,
+  return_inputs_model = F,
   ...
 )
 {
@@ -375,13 +375,13 @@ fit.deepregression <- function(
                                validation_data = validation_data,
                                callbacks = callbacks,
                                verbose = verbose,
-                               view_metrics = view_metrics, fast_fit = fast_fit)
+                               view_metrics = view_metrics)
     
-    if(fast_fit & object$engine == "torch") object$fit_fun <- fast_fit_function
-
+    
     args <- append(args,
                    input_list_model[!names(input_list_model) %in%
                                       names(args)])
+    if(return_inputs_model & object$engine == "torch") return(args)
 
   ret <- suppressWarnings(do.call(object$fit_fun, args))
   if(save_weights) ret$weighthistory <- weighthistory$weights_last_layer
@@ -585,14 +585,17 @@ cv.deepregression <- function(
                                       names(args)])
     
     args <- append(args, x$init_params$ellipsis)
-    # this is fine for torch, becuase fit_fun is special
+
     ret <- do.call(x$fit_fun, args)
+    
     if(save_weights) ret$weighthistory <- weighthistory$weights_last_layer
+    
     if(!is.null(save_fun))
       ret$save_fun_result <- save_fun(this_mod)
     
     if(stop_if_nan && any(is.nan(ret$metrics$validloss)))
       stop("Fold ", folds_iter, " with NaN's in ")
+    
     if(x$engine == "tf") this_mod$model$set_weights(old_weights)
     if(x$engine == "torch") this_mod$model()$load_state_dict(old_weights)
     
@@ -664,7 +667,7 @@ stddev.deepregression <- function(
 )
 {
   
-  if(x$engine == "tf") apply_fun = tfd_mean
+  if(x$engine == "tf") apply_fun = tfd_stddev
   if(x$engine == "torch") apply_fun = function(x) x$stddev
   
   predict.deepregression(x, newdata = data, apply_fun = apply_fun, ...)
