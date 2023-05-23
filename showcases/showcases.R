@@ -154,8 +154,6 @@ deep_model_torch
 deep_model_tf %>% fit(epochs = 500, early_stopping = F)
 deep_model_torch %>% fit(epochs = 500, early_stopping = F)
 
-
-
 plot(deep_model_tf %>% fitted(),
      deep_model_torch %>% fitted(),
      xlab = "tensorflow", ylab = "torch")
