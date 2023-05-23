@@ -18,7 +18,7 @@
 #' possible distribution and parameters, see \code{\link{make_tfd_dist}}. Can also
 #' be a custom distribution.
 #' @param data data.frame or named list with input features
-#' @param tf_seed a seed for TensorFlow (only works with R version >= 2.2.0)
+#' @param seed a seed for TensorFlow or Torch (only works with R version >= 2.2.0)
 #' @param additional_processors a named list with additional processors to convert the formula(s).
 #' Can have an attribute \code{"controls"} to pass additional controls
 #' @param return_prepoc logical; if TRUE only the pre-processed data and layers are returned 
@@ -103,7 +103,7 @@ deepregression <- function(
   list_of_deep_models = NULL,
   family = "normal",
   data,
-  tf_seed = as.integer(1991-5-4),
+  seed = as.integer(1991-5-4),
   return_prepoc = FALSE,
   subnetwork_builder = subnetwork_init,
   model_builder = keras_dr,
@@ -120,24 +120,30 @@ deepregression <- function(
 )
 {
   
-  if(!is.null(tf_seed))
-    try(tensorflow::set_random_seed(tf_seed), silent = TRUE)
+  if(!is.null(seed) & engine == "tf")
+    try(tensorflow::set_random_seed(seed), silent = TRUE)
+  if(!is.null(seed)& engine == "torch")
+    try(torch::torch_manual_seed(seed), silent = TRUE)
   
   # first check if an env is available
-  if(!reticulate::py_available())
+  if(!reticulate::py_available() & engine == "tf")
   {
     message("No Python Environemt available. Use check_and_install() ",
             "to install recommended environment.")
     invisible(return(NULL))
   }
 
-  if(!py_module_available("tensorflow"))
+  if(!py_module_available("tensorflow")  & engine == "tf")
   {
     message("Tensorflow not available. Use install_tensorflow().")
     invisible(return(NULL))
   }
+  # do the same as above for torch or encapsle it in function
+  
   if(engine == "torch"){
     check_input_torch(orthog_options)
+    subnetwork_builder <- subnetwork_init_torch
+    model_builder <- torch_dr
   }
   
   # convert data.frame to list
@@ -326,9 +332,8 @@ deepregression <- function(
                          output_dim = output_dim,
                          ...)
   if(verbose) cat(" Done.\n")
-
-  if(engine != "torch") {
-    ret <- list(model = model,
+  
+  ret <- list(model = model,
               init_params =
                 list(
                   list_of_formulas = list_of_formulas,
@@ -343,28 +348,12 @@ deepregression <- function(
                   image_var = image_var,
                   prepare_y_valdata = function(x) as.matrix(x)
                 ),
-              fit_fun = fitting_function,
-              engine = engine)}
-  if(engine == "torch"){
-    ret <- list(
-    model = model,
-              init_params =
-                list(
-                  list_of_formulas = list_of_formulas,
-                  gamdata = so$gamdata,
-                  additive_predictors = additive_predictors,
-                  parsed_formulas_contents = parsed_formulas_contents,
-                  y = y,
-                  ellipsis = list(...),
-                  family = family,
-                  penalty_options = penalty_options,
-                  orthog_options = orthog_options,
-                  image_var = image_var,
-                  prepare_y_valdata = function(x) as.matrix(x)
-                ),
-    fit_fun = luz::fit,
-    engine = engine)
-  }
+              fit_fun = ifelse(engine == 'tf',
+                               fitting_function, 
+                               luz::fit),
+              engine = engine)
+  
+ 
   class(ret) <- "deepregression"
 
   return(ret)
