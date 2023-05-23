@@ -36,7 +36,7 @@ deep_model_torch <- function() nn_sequential(
 mod_tf <- deepregression(y = y, data = airbnb,
                       list_of_formulas = 
                         list(
-                          location = ~ -1 + beds +
+                          location = ~ 1 + beds +
                             s(accommodates, bs = "ps") +
                             s(days_since_last_review, bs = "tp") +
                             deep(review_scores_rating, reviews_per_month),
@@ -48,20 +48,17 @@ mod_tf <- deepregression(y = y, data = airbnb,
 mod_torch <- deepregression(y = y, data = airbnb,
                          list_of_formulas = 
                            list(
-                             location = ~ -1 + beds +
+                             location = ~ 1 + beds +
                                s(accommodates, bs = "ps") +
                                s(days_since_last_review, bs = "tp") +
                                deep(review_scores_rating, reviews_per_month),
                              scale = ~1), orthog_options = orthog_options,
                          list_of_deep_models = list(deep = deep_model_torch),
-                         engine = "torch",
-                         subnetwork_builder = subnetwork_init_torch,
-                         model_builder = torch_dr
+                         engine = "torch"
                          )
 
-mod_tf %>% fit(epochs = 500, validation_split = 0.2)
-mod_torch %>% fit(epochs = 500, validation_split = 0.2)
-#mod_torch %>% fit(epochs = 100, validation_split = 0.2, fast_fit = T)
+mod_tf %>% fit(epochs = 250, validation_split = 0.2)
+mod_torch %>% fit(epochs = 250, validation_split = 0.2)
 
 fitted_vals_tf <- mod_tf %>% fitted()
 fitted_vals_torch <- mod_torch %>% fitted()
@@ -91,18 +88,13 @@ coef(mod_torch, which_param = 1)
 coef(mod_torch, which_param = 2)
 
 plot(mod_tf, which = 2)
-plot(mod_torch,  which = 2)
-
-test1 <- plot(mod_torch, only_data = T); str(test1,1)
-test2 <- plot(mod_tf, only_data = T); str(test2,1)
-
-cbind(test1$`s(days_since_last_review, bs = "tp")`[[4]], 
-      test2$`s(days_since_last_review, bs = "tp")`[[4]])
-# coefs quite different
+mod_torch_data <- plot(mod_torch,  which = 2, only_data = T)
+points(mod_torch_data[[1]]$value, mod_torch_data[[1]]$partial_effect, 
+       col = "green")
 
 # Cross validation
-res_cv_tf <- mod_tf %>% cv(plot = F, cv_folds = 3, epochs = 100)
-res_cv_torch <- mod_torch %>% cv(plot = F, cv_folds = 3, epochs = 100)
+res_cv_tf <- mod_tf %>% cv(plot = F, cv_folds = 3, epochs = 10)
+res_cv_torch <- mod_torch %>% cv(plot = F, cv_folds = 3, epochs = 10)
 
 dist_tf <- mod_tf %>% get_distribution()
 dist_torch <- mod_torch %>% get_distribution()
@@ -196,14 +188,13 @@ shared_dnn_torch <- deepregression(
   model_builder = torch_dr
 )
 
-shared_dnn_tf %>% fit(epochs = 500, validation_split = 0)
-shared_dnn_torch %>% fit(epochs = 500, validation_split = 0)
+shared_dnn_tf %>% fit(epochs = 50, validation_split = 0.1)
+shared_dnn_torch %>% fit(epochs = 50, validation_split = 0.1)
 
 plot(shared_dnn_tf %>% fitted(),
      shared_dnn_torch %>% fitted()
 )
-
-
+abline(a = 0, b = 1)
 
 # working with images
 airbnb$image <- paste0("/Users/marquach/Desktop/R_Projects/semi-structured_distributional_regression/application/airbnb/data/pictures/32/",
@@ -300,18 +291,17 @@ mod_cnn_torch <- deepregression(
      ~1 + room_type),
   data = airbnb,
   engine = "torch",
-  subnetwork_builder = subnetwork_init_torch,
-  model_builder = torch_dr, orthog_options = orthog_options,
+  orthog_options = orthog_options,
   list_of_deep_models = list(deep_model_cnn =
                                list(deep_model_cnn_torch, c(200,200,3))))
 
 
 mod_cnn_tf %>% fit(
-   epochs = 20, batch_size = 56,
+   epochs = 10, batch_size = 56,
    early_stopping = F)
 
 mod_cnn_torch %>% fit(
-  epochs = 1, batch_size = 56,
+  epochs = 10, batch_size = 56,
   early_stopping = F)
 
 
@@ -320,7 +310,7 @@ fitted_torch <- mod_cnn_torch %>% fitted()
 plot(fitted_torch, fitted_tf)
 cor(fitted_torch, fitted_tf)
 
-mod_cnn_tf %>% predict(airbnb[1,]) 
+mod_cnn_tf %>% predict(airbnb[1,])
 fitted_tf[1]
 mod_cnn_torch %>% predict(airbnb[1,])
 fitted_torch[1]
