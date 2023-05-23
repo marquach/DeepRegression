@@ -27,15 +27,16 @@ test_dataset <- dataset(
   .getbatch = function(index) {
       x <- self$data[index, 2:10]
       y <- self$data[index, 1]
+      x <- torch_tensor(x)
+      y <- torch_tensor(y)
       list(x, y)
       },
   .length = function() {
-    self$data$size()[[1]]
+    nrow(self$data)
     },
   prepare_test_data = function() {
     input <- cbind(mcycle$accel, gam_data)
     input <- as.matrix(input)
-    torch_tensor(input)
   }
 )
 
@@ -61,7 +62,7 @@ optimizer_t <- optim_adam(model_t$parameters)
 optimizer_t_manual <- optim_adam(model_t_manual$parameters)
 
 test_ds <- test_dataset()
-test_dl <- test_ds %>% dataloader(batch_size = 32)
+test_dl <- test_ds %>% dataloader(batch_size = 32, num_workers = 0)
 
 model_keras %>% compile(
   optimizer = 'adam',
@@ -72,6 +73,7 @@ b <- iter$.next()
 
 pre_fit <- net_torch %>% luz::setup(loss = nn_mse_loss(),
                                optimizer = optim_adam)
+pre_fit %>% fit(test_dl, epochs = 100, verbose = T)
 
 input <- gam_data
 input <- torch_tensor(input)
@@ -127,7 +129,7 @@ plain_benchmark <- benchmark(
       
       #cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l_man)))
     },
-  "torch_luz" = pre_fit %>% fit(test_dl, epochs = epochs, verbose = F),
+  "torch_luz" = pre_fit %>% fit(test_dl, epochs = epochs, verbose = T),
   columns = c("test", "elapsed", "relative"),
   order = "elapsed",
   replications = 2)
@@ -155,13 +157,13 @@ deepreg_gam_benchmark <- benchmark(
                                 validation_split = 0.1, verbose = F, batch_size = 32), 
   columns = c("test", "elapsed", "relative"),
   order = "elapsed",
-  replications = 1
+  replications = 2
 )
 deepreg_gam_benchmark
 
 # now test speed of different structures ((un|semi)-structured)
-# structures make no difference 
-# size of dataset plays huge role => think about getitem() again
+# different structures removed as different structures make no difference 
+# size of dataset plays huge role => think about .getitem() again
 # compare size n=100 to n=1000
 set.seed(42)
 n <- 100
@@ -203,11 +205,14 @@ deepreg_semistruc_benchmark_n100 <- benchmark(
   "tf" = semi_structured_tf %>% fit(epochs = epochs, early_stopping = F,
                                 validation_split = 0.1, verbose = F),
   "torch" = semi_structured_torch %>% fit(epochs = epochs, early_stopping = F,
-                                      validation_split = 0.1, verbose = F), 
+                                      validation_split = 0.1, verbose = F),
   columns = c("test", "elapsed", "relative"),
   order = "elapsed",
-  replications = 1
+  replications = 2
 )
+plot(semi_structured_tf %>% fitted(),
+     semi_structured_torch %>% fitted())
+
 
 set.seed(42)
 n <- 1000
@@ -234,7 +239,7 @@ deepreg_semistruc_benchmark_n1000 <- benchmark(
                                           validation_split = 0.1, verbose = F), 
   columns = c("test", "elapsed", "relative"),
   order = "elapsed",
-  replications = 1
+  replications = 2
 )
 
 list(n100 = deepreg_semistruc_benchmark_n100,
