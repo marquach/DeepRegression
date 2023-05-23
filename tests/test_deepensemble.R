@@ -13,7 +13,7 @@ airbnb$days_since_last_review <- as.numeric(
 )
 y = log(airbnb$price)
 
-mod_tf <- deepregression(
+ens_mod_tf <- deepregression(
  y = y,
  data = airbnb,
  list_of_formulas = list(
@@ -22,7 +22,7 @@ mod_tf <- deepregression(
    )
   )
 
-mod_torch <- deepregression(
+ens_mod_torch <- deepregression(
   y = y,
   data = airbnb,
   list_of_formulas = list(
@@ -34,10 +34,12 @@ mod_torch <- deepregression(
   subnetwork_builder = subnetwork_init_torch,
   model_builder = torch_dr)
 
-ens_tf <- ensemble(mod_tf, n_ensemble = 2, epochs = 2, early_stopping = TRUE,
+ens_tf <- ensemble(ens_mod_tf, n_ensemble = 2, epochs = 10,
+                   early_stopping = TRUE,
                     validation_split = 0.2)
-ens_torch <- ensemble(mod_torch, n_ensemble = 2, epochs = 2, early_stopping = TRUE,
-                   validation_split = 0.2, verbose = T)
+ens_torch <- ensemble(ens_mod_torch, n_ensemble = 2, epochs = 10,
+                      early_stopping = TRUE,
+                   validation_split = 0.2, verbose = F)
 
 ensemble_distr_tf <- get_ensemble_distribution(ens_tf, data = airbnb)
 ensemble_distr_tf$sample()
@@ -49,4 +51,5 @@ ensemble_distr_torch$sample()
 ensemble_distr_torch$mean()
 
 coef(ens_torch)
-fitted(ens_torch)
+str(fitted(ens_torch),1)
+str(fitted(ens_tf),1)
