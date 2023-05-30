@@ -7,224 +7,211 @@ orthog_options = orthog_control(orthogonalize = F)
 
 set.seed(42)
 n <- 100
-data = data.frame(matrix(rnorm(4*n), c(n,4)))
-colnames(data) <- c("x1","x2","x3","xa")
-y <- rnorm(n) + data$xa^2 + data$x1
-
-formula <- ~ 1 + deep_model(x1,x2,x3) + s(xa) + x1
-
-nn_torch <- nn_module(
-  initialize = function(){
-    self$fc1 <- nn_linear(in_features = 3, out_features = 32, bias = F)
-    self$fc2 <-  nn_linear(in_features = 32, out_features = 1)
-  },
-  forward = function(x){
-    x %>% self$fc1() %>% nnf_relu() %>% self$fc2()
-  }
-)
+x <- runif(n)
+y <- rnorm(n = n, mean = 2*x, sd = 1)  + 1
+data <- data.frame(x = x)
+formula <- ~ 1 + x # orthogonalization has to used in this example
 
 semi_structured_torch <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
   data = data, y = y, orthog_options = orthog_options,
-  list_of_deep_models = list(deep_model = nn_torch),
-  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch")
+
+semi_structured_tf <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options,
+  engine = "tf")
 
 # model for loop
 data_plain <- data
-data_plain <- cbind(1, data_plain) #add intercept
-data_plain <- cbind(data_plain, #add basis transformation
-                    semi_structured_torch$init_params$parsed_formulas_contents$loc[[2]]$data_trafo())
+data_plain <- cbind(1, data_plain)
 
 plain_torch_loop <- nn_module(
   initialize = function(){
-    
-    self$intercept_loc <- layer_dense_torch(input_shape = 1, units = 1)
-    self$spline <- layer_spline_torch(P =
-                                        semi_structured_torch$init_params$parsed_formulas_contents$loc[[2]]$penalty$values)
-    self$nn <- nn_torch()
-    self$linear <- layer_dense_torch(input_shape = 1, units = 1)
-    self$intercept_scale <- layer_dense_torch(input_shape = 1, units = 1)
+    self$linear <- nn_linear(in_features = 1, out_features = 1, T)
+    self$intercept_scale <- nn_linear(1, 1, F)
   },
-  forward = function(x){
-    loc <-  self$intercept_loc(x[,1, drop = F] ) +
-            self$spline(x[,6:14]) + 
-            self$nn(x[,2:4]) +
-            self$linear(x[,2, drop = F])
-    scale <- torch_add(1e-8, torch_exp(self$intercept_scale(x[,1, drop = F])))
-    
-    distr_normal(loc = loc, scale =scale)
+  
+  forward = function(input){
+    loc <- self$linear(input[,2, drop = F])
+    scale <- self$intercept_scale(input[,1, drop = F])
+    distr_normal(loc = loc, scale = torch_exp(scale))
   }
 )
 
 model <- plain_torch_loop()
-opt <- optim_adam(model$parameters, lr = 0.1)
 
+# setup for luz
+# same as in deepregression (initialized outside)
 intercept_loc <- layer_dense_torch(input_shape = 1, units = 1)
-spline <- layer_spline_torch(P =
-                     semi_structured_torch$init_params$parsed_formulas_contents$loc[[2]]$penalty$values)
-nn <- nn_torch()
 linear <- layer_dense_torch(input_shape = 1, units = 1)
 intercept_scale <- layer_dense_torch(input_shape = 1, units = 1)
 
 plain_torch_luz <- nn_module(
   initialize = function(){
-    
     self$intercept_loc <- intercept_loc
-    self$spline <- spline
-    self$nn <- nn
     self$linear <- linear
     self$intercept_scale <- intercept_scale
   },
-  forward = function(x){
-    loc <-  self$intercept_loc(x[,1, drop = F] ) +
-            self$spline(x[,6:14]) + 
-            self$nn(x[,2:4]) +
-            self$linear(x[,2, drop = F])
-    scale <- torch_add(1e-8, torch_exp(self$intercept_scale(x[,1, drop = F])))
+  forward = function(input){
+    loc <-  self$intercept_loc(input[,1, drop = F] ) + self$linear(input[,2, drop = F])
+    scale <- torch_add(1e-8, torch_exp(self$intercept_scale(input[,1, drop = F])))
     
     distr_normal(loc = loc, scale = scale)
   }
 )
 
-x <- torch_tensor(as.matrix(data_plain))
 plain_luz <- luz::setup(plain_torch_luz, 
                         loss = function(input, target){
                                  torch_mean(-input$log_prob(target))},
                         optimizer = optim_adam)
 
+# adapt learning rate to same as loop
+plain_luz <- plain_luz %>% set_opt_hparams(lr = 0.1)
+semi_structured_torch$model <- semi_structured_torch$model  %>%
+  set_opt_hparams(lr = 0.1)
+semi_structured_tf$model$optimizer$lr <- 
+  tf$Variable(0.1, name = "learning_rate")
+
 epochs <- 1000
 plain_deepreg_semistruc_benchmark_n100 <- benchmark(
-  "torch_plain" = for(i in 1:epochs){
-    opt$zero_grad()
-    d <- model(x)
-    loss <- torch_mean(-d$log_prob(y))
-    loss$backward()
-    opt$step()},
-  "plain_torch_luz" = fit(plain_luz, data = list(x, y), epochs = epochs,
-                          verbose = F),
+  "torch_plain" = plain_loop_fit_function(model = model, epochs = epochs, 
+                                          batch_size = 32,
+                                          data_x = data_plain, data_y = y,
+                                          validation_split = 0),
+  "plain_torch_luz" = plain_luz_fitted <- fit(plain_luz,
+                                              data = list(as.matrix(data_plain), 
+                                                          as.matrix(y)),
+                                              epochs = epochs, verbose = F,
+                                              dataloader_options = 
+                                                list(batch_size = 32)),
   "deepregression_luz" = semi_structured_torch %>% fit(epochs = epochs,
-                                              early_stopping = F,
-                                              validation_split = 0,
-                                              verbose = F), 
+                                                       early_stopping = F,
+                                                       validation_split = 0,
+                                                       verbose = F, batch_size = 32), 
   "deepregression_tf" = semi_structured_tf %>% fit(epochs = epochs, 
-                                                  early_stopping = F,
-                                    validation_split = 0, verbose = F),
+                                                   early_stopping = F,
+                                                   validation_split = 0, verbose = F,
+                                                   batch_size = 32),
   columns = c("test", "elapsed", "relative"),
   order = "elapsed",
   replications = 1
 )
 
+plain_deepreg_semistruc_benchmark_n100
+results_n100 <- cbind("plain_loop" = rev(lapply(model$parameters, as.array)[1:2]),
+      "plain_luz" = lapply(plain_luz_fitted$model$parameters, as.array)[1:2],
+      "deepreg_torch" = rev(coef(semi_structured_torch,1)),
+      "deepreg_tf" = rev(coef(semi_structured_tf,1)),
+      "gamlss" =coef(gamlss::gamlss(y~x, data = data)))
+
+
 set.seed(42)
 n <- 1000
-data = data.frame(matrix(rnorm(4*n), c(n,4)))
-colnames(data) <- c("x1","x2","x3","xa")
-y <- rnorm(n) + data$xa^2 + data$x1
-
-formula <- ~ 1 + deep_model(x1,x2,x3) + s(xa) + x1
-
-nn_torch <- nn_module(
-  initialize = function(){
-    self$fc1 <- nn_linear(in_features = 3, out_features = 32, bias = F)
-    self$fc2 <-  nn_linear(in_features = 32, out_features = 1)
-  },
-  forward = function(x){
-    x %>% self$fc1() %>% nnf_relu() %>% self$fc2()
-  }
-)
+x <- runif(n)
+y <- rnorm(n = n, mean = 2*x, sd = 1)  + 1
+data <- data.frame(x = x)
 
 semi_structured_torch <- deepregression(
   list_of_formulas = list(loc = formula, scale = ~ 1),
   data = data, y = y, orthog_options = orthog_options,
-  list_of_deep_models = list(deep_model = nn_torch),
-  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch")
+
+semi_structured_tf <- deepregression(
+  list_of_formulas = list(loc = formula, scale = ~ 1),
+  data = data, y = y, orthog_options = orthog_options,
+  engine = "tf")
 
 # model for loop
 data_plain <- data
-data_plain <- cbind(1, data_plain) #add intercept
-data_plain <- cbind(data_plain, #add basis transformation
-                    semi_structured_torch$init_params$parsed_formulas_contents$loc[[2]]$data_trafo())
+data_plain <- cbind(1, data_plain)
 
 plain_torch_loop <- nn_module(
   initialize = function(){
-    
-    self$intercept_loc <- layer_dense_torch(input_shape = 1, units = 1)
-    self$spline <- layer_spline_torch(P =
-                                        semi_structured_torch$init_params$parsed_formulas_contents$loc[[2]]$penalty$values)
-    self$nn <- nn_torch()
-    self$linear <- layer_dense_torch(input_shape = 1, units = 1)
-    self$intercept_scale <- layer_dense_torch(input_shape = 1, units = 1)
+    self$linear <- nn_linear(in_features = 1, out_features = 1, T)
+    self$intercept_scale <- nn_linear(1, 1, F)
   },
-  forward = function(x){
-    loc <-  self$intercept_loc(x[,1, drop = F] ) +
-      self$spline(x[,6:14]) + 
-      self$nn(x[,2:4]) +
-      self$linear(x[,2, drop = F])
-    scale <- torch_add(1e-8, torch_exp(self$intercept_scale(x[,1, drop = F])))
-    
-    distr_normal(loc = loc, scale =scale)
+  
+  forward = function(input){
+    loc <- self$linear(input[,2, drop = F])
+    scale <- self$intercept_scale(input[,1, drop = F])
+    distr_normal(loc = loc, scale = torch_exp(scale))
   }
 )
 
 model <- plain_torch_loop()
-opt <- optim_adam(model$parameters, lr = 0.1)
 
+# setup for luz
+# same as in deepregression (initialized outside)
 intercept_loc <- layer_dense_torch(input_shape = 1, units = 1)
-spline <- layer_spline_torch(P =
-                               semi_structured_torch$init_params$parsed_formulas_contents$loc[[2]]$penalty$values)
-nn <- nn_torch()
 linear <- layer_dense_torch(input_shape = 1, units = 1)
 intercept_scale <- layer_dense_torch(input_shape = 1, units = 1)
 
 plain_torch_luz <- nn_module(
   initialize = function(){
-    
     self$intercept_loc <- intercept_loc
-    self$spline <- spline
-    self$nn <- nn
     self$linear <- linear
     self$intercept_scale <- intercept_scale
   },
-  forward = function(x){
-    loc <-  self$intercept_loc(x[,1, drop = F] ) +
-      self$spline(x[,6:14]) + 
-      self$nn(x[,2:4]) +
-      self$linear(x[,2, drop = F])
-    scale <- torch_add(1e-8, torch_exp(self$intercept_scale(x[,1, drop = F])))
+  forward = function(input){
+    loc <-  self$intercept_loc(input[,1, drop = F] ) + self$linear(input[,2, drop = F])
+    scale <- torch_add(1e-8, torch_exp(self$intercept_scale(input[,1, drop = F])))
     
     distr_normal(loc = loc, scale = scale)
   }
 )
 
-x <- torch_tensor(as.matrix(data_plain))
+
 plain_luz <- luz::setup(plain_torch_luz, 
                         loss = function(input, target){
                           torch_mean(-input$log_prob(target))},
                         optimizer = optim_adam)
 
+# adapt learning rate to same as loop
+plain_luz <- plain_luz %>% set_opt_hparams(lr = 0.1)
+semi_structured_torch$model <- semi_structured_torch$model  %>%
+  set_opt_hparams(lr = 0.1)
+semi_structured_tf$model$optimizer$lr <- 
+  tf$Variable(0.1, name = "learning_rate")
+
 epochs <- 1000
 plain_deepreg_semistruc_benchmark_n1000 <- benchmark(
-  "torch_plain" = for(i in 1:10000){
-    opt$zero_grad()
-    d <- model(x)
-    loss <- torch_mean(-d$log_prob(y))
-    loss$backward()
-    print(loss)
-    opt$step()},
-  "plain_torch_luz" = fit(plain_luz, data = list(x, y), epochs = epochs,
-                          verbose = F),
+  "torch_plain" = plain_loop_fit_function(model = model, epochs = epochs, 
+                                          batch_size = 32,
+                                          data_x = data_plain, data_y = y,
+                                          validation_split = 0),
+  "plain_torch_luz" = plain_luz_fitted <- fit(plain_luz,
+                                              data = list(as.matrix(data_plain), 
+                                                          as.matrix(y)),
+                                              epochs = epochs, verbose = F,
+                                              dataloader_options = 
+                                                list(batch_size = 32)),
   "deepregression_luz" = semi_structured_torch %>% fit(epochs = epochs,
                                                        early_stopping = F,
                                                        validation_split = 0,
-                                                       verbose = F), 
+                                                       verbose = F,
+                                                       batch_size = 32), 
   "deepregression_tf" = semi_structured_tf %>% fit(epochs = epochs, 
                                                    early_stopping = F,
-                                                   validation_split = 0, verbose = F),
+                                                   validation_split = 0, verbose = F,
+                                                   batch_size = 32),
   columns = c("test", "elapsed", "relative"),
   order = "elapsed",
   replications = 1
 )
 
+results_n1000 <- cbind("plain_loop" = rev(lapply(model$parameters, as.array)[1:2]),
+      "plain_luz" = lapply(plain_luz_fitted$model$parameters, as.array)[1:2],
+      "deepreg_torch" = rev(coef(semi_structured_torch,1)),
+      "deepreg_tf" = rev(coef(semi_structured_tf,1)),
+      "gamlss" =coef(gamlss::gamlss(y~x, data = data)))
+
+plain_deepreg_semistruc_benchmark_n100
+plain_deepreg_semistruc_benchmark_n1000
+plain_deepreg_semistruc_benchmark_n1000[,2]/
+  plain_deepreg_semistruc_benchmark_n100[,2]
+  
+results_n100
+results_n1000
 
 

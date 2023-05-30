@@ -83,6 +83,45 @@ fast_fit_function <- function(object, epochs, batch_size, data_x, data_y,
 }
 
 
+plain_loop_fit_function <- function(model, epochs, batch_size, data_x, data_y,
+                                    validation_split){
+  
+  data_x <- torch_tensor(as.matrix(data_x))
+  data_y <- torch_tensor(data_y)
+  num_data_points <- data_y$size(1)
+  data_y <- data_y$view(c(num_data_points,1))
+  num_batches <- floor(data_y$size(1)/batch_size)
+  
+  optimizer_t_manual <- optim_adam(model$parameters)
+  
+  for(epoch in 1:epochs){
+    model$train()
+    l_man <- c()
+    # rearrange the data each epoch
+    permute <- torch_randperm(data_y$size(1)) + 1L
+    data_x <- data_x[permute,]
+    data_y <- data_y[permute]
+    
+    # manually loop through the batches
+    for(batch_idx in 1:num_batches){
+      
+      # here index is a vector of the indices in the batch
+      index <- (batch_size*(batch_idx-1) + 1):(batch_idx*batch_size)
+      
+      x <- data_x[index,]
+      y <- data_y[index]
+      
+      optimizer_t_manual$zero_grad()
+      
+      output <- model(x)
+      loss_man <- torch_mean(-output$log_prob(y))
+      loss_man$backward()
+      optimizer_t_manual$step()
+      l_man <- c(l_man, loss_man$item())
+    }
+    #cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l_man)))
+  }
+}
 
 
 
