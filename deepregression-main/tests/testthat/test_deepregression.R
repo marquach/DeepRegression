@@ -20,7 +20,7 @@ test_that("Simple additive model", {
       list_of_deep_models = list(d = deep_model)
     )
     expect_is(mod, "deepregression")
-    expect_length(mod, 3)
+    expect_length(mod, 4)
     expect_true(length(setdiff(names(mod), 
                                c("model", "init_params", "fit_fun")
                                )
