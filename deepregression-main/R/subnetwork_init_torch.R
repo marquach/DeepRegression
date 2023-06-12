@@ -57,24 +57,19 @@ subnetwork_init_torch <- function(pp, deep_top = NULL,
       
       terms_replace_layer <- which(names_terms%in%group)
       layer_matching[terms_replace_layer] <- layer_ref_nr
-      for(i in terms_replace_layer) pp_lay[[i]]$layer <- layer_ref
       
+      for(i in terms_replace_layer) pp_lay[[i]]$layer <- function() layer_ref
     }
   }
   
   
   if(all(sapply(pp_in, function(x) is.null(x$right_from_oz)))){ 
     # if there is no term to orthogonalize
-    outputs <- lapply(1:length(pp_in), function(i) {
-      if(inherits(pp_lay[[i]]$layer, 'nn_module')) {
-        pp_lay[[i]]$layer} else
-       pp_lay[[i]]$layer()
-    })
-                                  
-
+    outputs <- lapply(1:length(pp_in), function(i){ 
+      pp_lay[[i]]$layer()})
+    
     names(outputs) <- sapply(1:length(pp_in),
                              function(i) pp_lay[[i]]$term)
-    return(outputs) 
-    
+    outputs
   }
 }
