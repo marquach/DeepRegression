@@ -1,4 +1,33 @@
 
+layer_dense_module <- function(kernel_initializer){
+  nn_module(classname = "nn_linear_deepregression",
+            initialize = nn_linear$public_methods$initialize,
+            forward = nn_linear$public_methods$forward,
+            reset_parameters = kernel_initializer
+            )
+}
+
+# nn_init constand does not work if value is more than 1
+# so warmstarts for gam doesnot wokr
+nn_init_no_grad_constant_deepreg <- function(tensor, value){
+  
+  if(length(value) == 1){
+    with_no_grad({
+      tensor$fill_(value)
+    })
+    return(tensor)
+  }
+  
+  with_no_grad({
+    tensor <- tensor$t()
+    lapply(1:length(value),
+           function(x) tensor[x] = tensor$index_fill(1, x, value[x])[x])
+    tensor <- tensor$t()
+  })
+  tensor
+}
+
+
 #' Function to define a torch layer similar to a tf dense layer
 #' 
 #' @param units integer; number of output units
@@ -9,25 +38,21 @@
 #' @export
 layer_dense_torch <- function(input_shape, units = 1L, name, trainable = TRUE,
                               kernel_initializer = "glorot_uniform",
-                              use_bias = FALSE, kernel_regularizer = NULL){
+                              use_bias = FALSE, kernel_regularizer = NULL, ...){
   
-  layer <- nn_linear(in_features = input_shape,
+  dots <- list(...)
+  kernel_initializer <- do.call(
+    choose_kernel_initializer_torch, list(kernel_initializer,
+                                          dots$kernel_initializer_value))
+  
+  layer_module <- layer_dense_module(kernel_initializer)
+  layer <-  layer_module(in_features = input_shape,
                      out_features = units, bias = use_bias)
   
-  if (kernel_initializer == "glorot_uniform") {
-    nn_init_xavier_uniform_(
-      tensor = layer$weight,
-      gain = nn_init_calculate_gain(nonlinearity = "linear"))
-  }
+  if(!trainable) layer$parameters$weight$requires_grad_(F)
   
-  if (kernel_initializer == "torch_ones") {
-    nn_init_ones_(layer$parameters$weight)
-  }
-  
-  if(!trainable) layer$parameters$weight$requires_grad = FALSE
   
   if(!is.null(kernel_regularizer)){
-    
     if(kernel_regularizer$regularizer == "l2") {
       layer$parameters$weight$register_hook(function(grad){
         grad + 2*(kernel_regularizer$la)*(layer$parameters$weight)
@@ -37,57 +62,19 @@ layer_dense_torch <- function(input_shape, units = 1L, name, trainable = TRUE,
   layer
 }
 
-
-
-
-#' Function to define spline as Torch layer
-#' 
-#' @param units integer; number of output units
-#' @param P matrix; penalty matrix
-#' @param name string; string defining the layer's name
-#' @param trainable logical; whether layer is trainable
-#' @param kernel_initializer initializer; for basis coefficients
-#' @return Torch layer
-#' @export
-layer_spline_torch <- function(P, units = 1L, name, trainable = TRUE,
-                               kernel_initializer = "glorot_uniform"){
-  P <- torch_tensor(P)
-  input_shape <- P$size(1)
-  spline_layer <- nn_linear(in_features = input_shape,
-                            out_features = units, bias = FALSE)
-  
-  if (kernel_initializer == "glorot_uniform") {
-    nn_init_xavier_uniform_(
-      tensor = spline_layer$weight,
-      gain = nn_init_calculate_gain(nonlinearity = "linear"))
-  }
-  
-  spline_layer$parameters$weight$register_hook(function(grad){
-    grad + torch_matmul((P+P$t()), spline_layer$weight$t())$t()
-  })
-  
-  if(!trainable) spline_layer$parameters$weight$requires_grad = FALSE
-  
-  spline_layer
-}
-
-
-simplyconnected_layer_torch <- function(la = la,
-                                        multfac_initializer = torch_ones,
-                                        input_shape){
+simplyconnected_layer_torch <-
   nn_module(
     classname = "simply_con",
-    
-    initialize = function(){
+    initialize = function(la = la,  multfac_initializer = torch_ones, 
+                          input_shape){
       self$la <- torch_tensor(la)
       self$multfac_initializer <- multfac_initializer
       
       sc <- nn_parameter(x = self$multfac_initializer(input_shape))
       
-      sc$register_hook(function(grad){
-        grad + 2*la*sc
-      })
+      sc$register_hook(function(grad) {grad + 2*la*sc})
       self$sc <- sc
+      
     },
     
     forward = function(dataset_list){
@@ -96,19 +83,18 @@ simplyconnected_layer_torch <- function(la = la,
         dataset_list)
     }
   )
-}
 
 
 tiblinlasso_layer_torch <- function(la, input_shape = 1, units = 1,
                                     kernel_initializer = "he_normal"){
   
   la <- torch_tensor(la)
-  tiblinlasso_layer <- nn_linear(in_features = input_shape,
-                                 out_features = units, bias = F)
   
-  if (kernel_initializer == "he_normal") {
-    nn_init_kaiming_normal_(tiblinlasso_layer$parameters$weight)
-  }
+  kernel_initializer <- choose_kernel_initializer_torch(kernel_initializer)
+
+  tiblinlasso_module <- layer_dense_module(kernel_initializer)
+  tiblinlasso_layer <-  tiblinlasso_module(in_features = input_shape,
+                         out_features = units, bias = F)
   
   tiblinlasso_layer$parameters$weight$register_hook(function(grad){
     grad + 2*la*tiblinlasso_layer$parameters$weight
@@ -130,7 +116,7 @@ tib_layer_torch <-
       self$sc <- simplyconnected_layer_torch(la = self$la,
                                              input_shape = input_shape,
                                              multfac_initializer = 
-                                               self$multfac_initializer)()
+                                               self$multfac_initializer)
       
     },
     forward = function(data_list){
@@ -156,7 +142,8 @@ tibgroup_layer_torch <-
       if(is.null(self$group_idx)){
         self$fc <- layer_dense_torch(input_shape = 1, units = 1,
                                      kernel_regularizer = self$kernel_regularizer,
-                                     kernel_initializer = self$kernel_initializer, use_bias = F)
+                                     kernel_initializer = self$kernel_initializer,
+                                     use_bias = F)
         
         self$gc <- layer_dense_torch(input_shape = input_shape, units = 1,
                                      kernel_regularizer = self$kernel_regularizer,
