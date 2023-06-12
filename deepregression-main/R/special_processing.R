@@ -19,7 +19,7 @@ process_terms <- function(
   parsing_options,
   specials_to_oz = c(), 
   automatic_oz_check = TRUE, 
-  identify_intercept = FALSE, engine,
+  identify_intercept = FALSE, engine = "tf",
   ...){
   
   defaults <- 
@@ -86,6 +86,11 @@ process_terms <- function(
     args$term = list_terms[[i]]$term
     spec <- get_special(list_terms[[i]]$term, specials = specials, 
                         simplify = !parsing_options$check_form)
+    # check special 
+    if(!is.null(spec) & engine == "torch")
+      if(spec %in% c("offsetx", "rwt", "const", "mult")) 
+        stop("Special not implemented in Torch")
+    
     args$controls <- controls 
     args$controls$procs <- procs
     #args$controls$intercept_included <- any(
@@ -152,7 +157,7 @@ layer_generator <- function(term, output_dim, param_nr, controls,
                             further_layer_args = NULL,
                             layer_args_names = NULL,
                             units = as.integer(output_dim),
-                            engine,
+                            engine = "tf",
                             ...
                             ){
   
@@ -160,11 +165,14 @@ layer_generator <- function(term, output_dim, param_nr, controls,
     controls$const_broadcasting & output_dim>1)
   
   layer_args <- controls$weight_options$general
-  dots <- list(...)
-  layer_dots_index <- which(names(layer_args) %in% names(dots))
-  layer_args[layer_dots_index] <- dots
-  dot_layer_index <- which( names(dots) %in% names(layer_args))
-  layer_args <- c(layer_args, dots[-dot_layer_index])
+  layer_args <- c(layer_args, list(...))
+  
+  
+  #dots <- list(...)
+  #layer_dots_index <- which(names(layer_args) %in% names(dots))
+  #layer_args[layer_dots_index] <- dots
+  #dot_layer_index <- which( names(dots) %in% names(layer_args))
+  #layer_args <- c(layer_args, dots[-dot_layer_index])
   
   specific_opt <- term %in% names(controls$weight_options$specific)
   if(specific_opt){
@@ -177,13 +185,19 @@ layer_generator <- function(term, output_dim, param_nr, controls,
   
   warmstart <- term %in% names(controls$weight_options$warmstarts)
   
-  if(warmstart)
-    layer_args$kernel_initializer <- tf$keras$initializers$Constant(
-      controls$weight_options$warmstarts[[term]]
-    )
+  if(warmstart){
+    if(engine == "tf"){
+      layer_args$kernel_initializer <-
+        tf$keras$initializers$Constant(
+          controls$weight_options$warmstarts[[term]])
+    }
+    if(engine == "torch"){
+      layer_args$kernel_initializer <- "constant"
+      }
+  }
   
 
-  if(!const_broadcasting) layer_args$units <- as.integer(output_dim) else 
+  if(!const_broadcasting) layer_args$units <- units else 
     layer_args$units <- controls$const_broadcasting
   layer_args$name <- name
 
@@ -197,13 +211,15 @@ layer_generator <- function(term, output_dim, param_nr, controls,
                                "activity_regularizer", "kernel_constraint",  
                                "bias_constraint")
     layer_args <- layer_args[!(names(layer_args) %in% torch_not_implemented)]
-    
+    # has to be added after layer_args[layer_args_names] to work properly with torch
+    layer_args$kernel_initializer_value <- 
+      controls$weight_options$warmstarts[[term]]
     }
   
   if(controls$with_layer){
     
     if(!const_broadcasting){
-      if(engine != 'torch'){
+      if(engine == 'tf'){
         layer = function(x){
           return(
             do.call(layer_class, layer_args)(x)
@@ -261,7 +277,8 @@ int_processor <- function(term, data, output_dim, param_nr, controls, engine){
                            output_dim = output_dim, 
                            param_nr = param_nr, 
                            controls = controls, engine = engine, 
-                           further_layer_args = if(engine == "torch")input_shape,
+                           further_layer_args = if(engine == "torch")
+                             list(input_shape=input_shape),
                            layer_class = layer_class,
                            without_layer = without_layer)
 
@@ -317,13 +334,11 @@ lin_processor <- function(term, data, output_dim, param_nr, controls, engine){
                            param_nr = param_nr, 
                            controls = controls,
                            engine = engine,
-                           further_layer_args = if(engine == "torch") input_shape,
+                           further_layer_args = if(engine == "torch") 
+                             list(input_shape=input_shape),
                            layer_class = layer_class,
                            without_layer = without_layer)
-  
 
-  
-  
   
   list(
     data_trafo = function() data_trafo(),
@@ -353,7 +368,7 @@ gam_processor <- function(term, data, output_dim, param_nr, controls, engine){
 
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
-                           param_nr = param_nr, units = units,
+                           param_nr = param_nr,
                            controls = controls, engine = engine,
                            further_layer_args = list(P = P),
                            layer_args_names = c("name", "units", "P", "trainable", 
