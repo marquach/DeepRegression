@@ -4,7 +4,7 @@
 #' @param newdata list in the same format as the original data
 #' @return list of matrices or arrays
 #' 
-loop_through_pfc_and_call_trafo <- function(pfc, newdata = NULL, engine)
+loop_through_pfc_and_call_trafo <- function(pfc, newdata = NULL, engine = "tf")
 {
   
   data_list <- list()
