@@ -58,19 +58,11 @@ ensemble.deepregression <- function(
   res <- mylapply(1:n_ensemble, function(iter) {
 
     # Randomly initialize weights
-    if(x$engine == "tf"){
-      if (reinitialize)
+    if (reinitialize){
       x <- reinit_weights(x, seed[iter])
-    else
-      set_weights(x$model, original_weights)
-    }
-    
-    if(x$engine == "torch"){
-      if (reinitialize){
-        torch_manual_seed(seed[iter])
-        x$model()$apply(weight_reset)
-      }else 
-        x$model()$load_state_dict(original_weights)
+    } else {
+      if(x$engine == "tf") set_weights(x$model, original_weights)
+      if(x$engine == "torch") x$model()$load_state_dict(original_weights)
     }
 
     if (print_members)
@@ -88,7 +80,7 @@ ensemble.deepregression <- function(
     if(x$engine == "torch"){
     input_list_model <- 
       prepare_input_list_model(input_x = x_train,
-                               input_y = x$init_params$y,
+                               input_y = as.matrix(x$init_params$y),
                                object = x,
                                callbacks = callbacks,
                                verbose = verbose,
@@ -123,14 +115,12 @@ ensemble.deepregression <- function(
   
   
     if (save_weights){
-      
-     if(x$engine == "tf") ret$weighthistory <- get_weights(x$model)
+      if(x$engine == "tf") ret$weighthistory <- get_weights(x$model)
      if(x$engine == "torch") ret$weighthistory <- x %>% get_weights_torch()
     }
 
     if (!is.null(save_fun)){
-      if(x$engine == "tf") ret$save_fun_result <- save_fun(this_mod)
-
+      ret$save_fun_result <- save_fun(this_mod)
     }
 
     if(stop_if_nan && any(is.nan(ret$metrics$validloss)))
@@ -297,6 +287,7 @@ reinit_weights <- function(object, seed) {
 #' @export
 #'
 reinit_weights.deepregression <- function(object, seed) {
+  if(object$engine == "tf"){
   lapply(object$model$layers, function(x) {
     # x$build(x$input_shape)
     dtype <- x$dtype
@@ -309,4 +300,10 @@ reinit_weights.deepregression <- function(object, seed) {
     }, silent = TRUE)
   })
   return(invisible(object))
+  }
+  if(object$engine == "torch"){
+    torch_manual_seed(seed)
+    object$model()$apply(weight_reset)
+    invisible(object)
+  }
 }
