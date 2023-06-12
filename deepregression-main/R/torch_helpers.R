@@ -11,7 +11,7 @@ get_luz_dataset <- dataset(
     
     self$data <- self$setup_loader(df_list)
     self$target <- target
-    if(!is.null(length)) self$length <- length #this lead to the error David got
+    if(!is.null(length)) self$length <- length 
     
   },
   
@@ -75,9 +75,18 @@ weight_reset <-  function(m) {
 collect_distribution_parameters <- function(family){
   parameter_list <- switch(family,
                            normal = function(x) list("loc" = x$loc,
-                                                     "scale" = x$scale))
+                                                     "scale" = x$scale),
+                           bernoulli = function(x) list("logits" = x$logits),
+                           bernoulli_prob = function(x) list("probs" = x$probs),
+                           poisson = function(x) list("rate" = x$rate),
+                           gamma = function(x) list("concentration" = 
+                                                      x$concentration,
+                                                    "rate" = x$rate))
   parameter_list
 }
+
+
+
 
 prepare_torch_distr_mixdistr <- function(object, dists){
   
@@ -99,4 +108,30 @@ check_data_for_image <- function(data){
   png_yes <- all(grepl(x = data, pattern = ".png"))
   image_yes <- jpg_yes | png_yes
   image_yes
+}
+
+choose_kernel_initializer_torch <- function(kernel_initializer, value = NULL){
+  kernel_initializer_value <- value
+  
+  if( kernel_initializer == "constant"){
+    kernel_initializer <-  function(value)
+      nn_init_no_grad_constant_deepreg(
+        tensor = self$weight, value = value)
+    formals(kernel_initializer)$value <- kernel_initializer_value
+    return(kernel_initializer)
+  }
+  
+  kernel_initializer <- switch(kernel_initializer,
+                               "glorot_uniform" = 
+                                 function(){
+                                   nn_init_xavier_uniform_(tensor = self$weight,
+                                                           gain = nn_init_calculate_gain(
+                                                             nonlinearity = "linear"))},
+                               "torch_ones" = function() 
+                                 nn_init_ones_(self$weight),
+                               "he_normal" = function()
+                                 nn_init_kaiming_normal_(self$weight)
+  )
+  
+  kernel_initializer
 }
