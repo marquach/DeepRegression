@@ -39,32 +39,31 @@ prepare_input_list_model <- function(input_x, input_y,
     }
     
     if(!is.null(validation_data)){
-      train_dl <- dataloader(input_dataloader, batch_size = batch_size)
+      train_dl <- dataloader(input_dataloader, batch_size = batch_size,
+                             shuffle = T)
       
       validation_dataloader <- prepare_data_torch(
         pfc  = object$init_params$parsed_formulas_content,
         input_x = validation_data[[1]],
         target = validation_data[[2]])
       
-      valid_dl <- dataloader(validation_dataloader, batch_size = batch_size)
+      valid_dl <- dataloader(validation_dataloader, batch_size = batch_size,
+                             shuffle = T)
     }
     
     if(!identical(validation_split, 0) & !is.null(validation_split)){
-      train_ids <- sample(1:length(input_y), 
-                          size = ceiling((1-validation_split) * length(input_y)))
+      train_ids <- 1:(ceiling((1-validation_split) * length(input_y)))
       valid_ids <- setdiff(1:length(input_y), train_ids)
-      valid_ids <- sample(valid_ids,
-                          size = length(valid_ids))
-      
+
       train_ds <- dataset_subset(input_dataloader, indices = train_ids)
       valid_ds <- dataset_subset(input_dataloader, indices = valid_ids)
       
       if(any(unlist(lapply(input_x, check_data_for_image)))) 
         cat(sprintf("Found %s validated image filenames \n", length(train_ids)))
-      train_dl <- dataloader(train_ds, batch_size = batch_size)
+      train_dl <- dataloader(train_ds, batch_size = batch_size, shuffle = T)
       if(any(unlist(lapply(input_x, check_data_for_image))))
         cat(sprintf("Found %s validated image filenames \n", length(valid_ids)))
-      valid_dl <- dataloader(valid_ds, batch_size = batch_size)
+      valid_dl <- dataloader(valid_ds, batch_size = batch_size, shuffle = T)
     }
     
     if(!is.null(valid_dl)) valid_data <- valid_dl
@@ -89,7 +88,9 @@ prepare_input_list_model <- function(input_x, input_y,
            validation_data = validation_data,
            callbacks = callbacks,
            verbose = verbose,
-           view_metrics = ifelse(view_metrics, getOption("keras.view_metrics", default = "auto"), FALSE)
+           view_metrics = ifelse(view_metrics,
+                                 getOption("keras.view_metrics",
+                                           default = "auto"), FALSE)
       )
     
     input_list_model <- c(input_list_model,
