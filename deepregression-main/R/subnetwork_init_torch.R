@@ -40,14 +40,40 @@ subnetwork_init_torch <- function(pp, deep_top = NULL,
   layer_matching <- 1:length(pp_in)
   names(layer_matching) <- layer_matching
   
+  if(!is.null(shared_layers))
+  {
+    
+    names_terms <- get_names_pfc(pp_in)
+    
+    for(group in shared_layers){
+      
+      layer_ref_nr <- which(names_terms==group[1])
+      layer_opts <- get("layer_args", environment(pp_lay[[layer_ref_nr]]$layer))
+      layer_opts$name <- paste0("shared_", 
+                                makelayername(paste(group, collapse="_"), 
+                                              param_nr))
+      layer_ref <- do.call(get("layer_class", environment(pp_lay[[layer_ref_nr]]$layer)),
+                           layer_opts)
+      
+      terms_replace_layer <- which(names_terms%in%group)
+      layer_matching[terms_replace_layer] <- layer_ref_nr
+      for(i in terms_replace_layer) pp_lay[[i]]$layer <- layer_ref
+      
+    }
+  }
+  
   
   if(all(sapply(pp_in, function(x) is.null(x$right_from_oz)))){ 
     # if there is no term to orthogonalize
-    
-    outputs <- lapply(1:length(pp_in),
-                      function(i) pp_lay[[layer_matching[i]]]$layer())
+    outputs <- lapply(1:length(pp_in), function(i) {
+      if(inherits(pp_lay[[i]]$layer, 'nn_module')) {
+        pp_lay[[i]]$layer} else
+       pp_lay[[i]]$layer()
+    })
+                                  
+
     names(outputs) <- sapply(1:length(pp_in),
-                             function(i) pp_lay[[layer_matching[i]]]$term)
+                             function(i) pp_lay[[i]]$term)
     return(outputs) 
     
   }
