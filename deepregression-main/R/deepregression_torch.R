@@ -21,8 +21,7 @@ model_torch <-  function(submodules_list){
         self$subnetwork[[x]](dataset_list[[x]])
       })
       
-      #Reduce(f = "+", x = subnetworks)
-      torch_sum(torch_stack(subnetworks), dim = 1)
+      Reduce(f = torch_add, subnetworks)
     }
   )}
 
@@ -200,7 +199,7 @@ from_preds_to_dist_torch <- function(
   if(is.null(names(list_pred_param))){
     names(list_pred_param) <- names_families(family)
   }
-  # adapt model_torch to use multiple optimizer (if we want to add smoothing parameter)
+
   preds <- lapply(list_pred_param, model_torch)
   
   # generate output
