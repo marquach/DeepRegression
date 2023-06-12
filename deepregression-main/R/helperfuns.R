@@ -31,7 +31,7 @@ NCOL0 <- function(x)
 get_mod_names <- function(x, param_nr = NULL)
 {
   if(x$engine == "tf")  return(sapply(x$model$layers,"[[","name"))
-  if(x$engine == "torch") names(x$model()[[1]][[param_nr]][[1]]$modules)
+  if(x$engine == "torch") names(x$model()[[1]][[param_nr]][[1]]$children)
 }
 
 #' Function to return weight given model and name
@@ -79,7 +79,7 @@ get_layer_by_opname <- function(mod, name, partial_match = FALSE,
     stop("Cannot find specified ", name, " in model weights.")
   if(mod$engine == "tf") return(mod$model$layers[[w]])
   if(mod$engine == "torch") return(
-    mod$model()[[1]][[param_nr]][[1]]$modules[[w]])
+    mod$model()[[1]][[param_nr]][[1]]$children[[w]])
   
   
 }
