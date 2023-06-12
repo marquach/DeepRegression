@@ -801,9 +801,18 @@ log_score <- function(
   }else{
     
     if(is.data.frame(data)) data <- as.list(data)
+    
     this_data <- prepare_newdata(x$init_params$parsed_formulas_content, 
                                  data, 
-                                 gamdata = x$init_params$gamdata$data_trafos)
+                                 gamdata = x$init_params$gamdata$data_trafos,
+                                 engine = x$engine)
+    
+    if(x$engine == "torch"){
+      this_data <- prepare_data_torch(pfc = x$init_params$parsed_formulas_content,
+                                      input_x = this_data)
+      x$model <- x$model()
+      x$model$eval()
+    }
     
   }
   
@@ -841,7 +850,8 @@ get_weight_by_name <- function(mod, name, param_nr=1, postfixes="")
   if(mod$engine == "tf") names_pfc[names_pfc=="(Intercept)"] <- "1"
   pfc_term <- mod$init_params$parsed_formulas_contents[[param_nr]][[which(names_pfc==name)]]
   if(!is.null(pfc_term$shared_name)){
-    this_name <- paste0(pfc_term$shared_name, postfixes)
+    if(mod$engine == "tf") this_name <- paste0(pfc_term$shared_name, postfixes)
+    if(mod$engine == "torch") this_name <- name
   }else{
     if(mod$engine == "tf")  this_name <- paste0(makelayername(name, param_nr), postfixes)
     if(mod$engine == "torch") this_name <- name
