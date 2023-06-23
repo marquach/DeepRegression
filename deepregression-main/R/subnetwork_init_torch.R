@@ -17,7 +17,7 @@
 #' @export
 #' 
 subnetwork_init_torch <- function(pp, deep_top = NULL, 
-                                  orthog_fun = orthog_tf, 
+                                  orthog_fun = NULL, 
                                   split_fun = split_model,
                                   shared_layers = NULL,
                                   param_nr = 1,
@@ -49,16 +49,17 @@ subnetwork_init_torch <- function(pp, deep_top = NULL,
       
       layer_ref_nr <- which(names_terms==group[1])
       layer_opts <- get("layer_args", environment(pp_lay[[layer_ref_nr]]$layer))
-      layer_opts$name <- paste0("shared_", 
-                                makelayername(paste(group, collapse="_"), 
-                                              param_nr))
+      layer_opts$name <- paste0("shared_",paste(make_valid_layername(group), collapse = ""))
       layer_ref <- do.call(get("layer_class", environment(pp_lay[[layer_ref_nr]]$layer)),
                            layer_opts)
       
       terms_replace_layer <- which(names_terms%in%group)
       layer_matching[terms_replace_layer] <- layer_ref_nr
       
-      for(i in terms_replace_layer) pp_lay[[i]]$layer <- function() layer_ref
+      for(i in terms_replace_layer) {
+        pp_lay[[i]]$layer <- function() layer_ref
+        pp_lay[[i]]$term <- layer_opts$name
+      }
     }
   }
   
@@ -68,8 +69,8 @@ subnetwork_init_torch <- function(pp, deep_top = NULL,
     outputs <- lapply(1:length(pp_in), function(i){ 
       pp_lay[[i]]$layer()})
     
-    names(outputs) <- sapply(1:length(pp_in),
-                             function(i) pp_lay[[i]]$term)
+    names(outputs) <- paste(sapply(1:length(pp_in),
+                             function(i) pp_lay[[i]]$term), param_nr, sep = "_")
     outputs
   }
 }
