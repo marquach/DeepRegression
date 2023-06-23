@@ -152,8 +152,8 @@ process_terms <- function(
 #' 
 layer_generator <- function(term, output_dim, param_nr, controls, 
                             name = makelayername(term, param_nr), 
-                            layer_class,
-                            without_layer,
+                            layer_class = tf$keras$layers$Dense,
+                            without_layer = tf$identity,
                             further_layer_args = NULL,
                             layer_args_names = NULL,
                             units = as.integer(output_dim),
@@ -166,7 +166,6 @@ layer_generator <- function(term, output_dim, param_nr, controls,
   
   layer_args <- controls$weight_options$general
   layer_args <- c(layer_args, list(...))
-  
   
   #dots <- list(...)
   #layer_dots_index <- which(names(layer_args) %in% names(dots))
@@ -542,15 +541,15 @@ l2_processor <- function(term, data, output_dim, param_nr, controls, engine){
                           yes = length(unique(data_trafo()[[1]])), 
                           no = 1)
   } 
-  
+  controls$weight_options$general$kernel_regularizer <- kernel_regularizer
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
                            param_nr = param_nr, 
                            layer_class = layer_class,
                            without_layer = without_layer,
                            controls = controls,
-                           further_layer_args = if(engine == "torch") input_shape,
-                           kernel_regularizer = kernel_regularizer,
+                           further_layer_args = 
+                             if(engine == "torch")  input_shape,
                            engine = engine
   )
 
@@ -565,7 +564,8 @@ l2_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
 }
 
-offset_processor <- function(term, data, output_dim, param_nr, controls=NULL){
+offset_processor <- function(term, data, output_dim, param_nr, controls=NULL, 
+                             engine){
   
   layer <- layer_generator(term = term, 
                            output_dim = output_dim, 
@@ -583,7 +583,7 @@ offset_processor <- function(term, data, output_dim, param_nr, controls=NULL){
   )
 }
 
-rwt_processor <- function(term, data, output_dim, param_nr, controls){
+rwt_processor <- function(term, data, output_dim, param_nr, controls, engine){
   
   special_layer <- suppressWarnings(extractval(term, "layer"))
   if(!is.null(special_layer)) special_layer <- as.character(special_layer)
@@ -593,7 +593,8 @@ rwt_processor <- function(term, data, output_dim, param_nr, controls){
   
   terms <- lapply(terms, function(t){ 
     args <- list(term = t, data = data, output_dim = output_dim,
-                 param_nr = param_nr, controls = controls)
+                 param_nr = param_nr, controls = controls,
+                 engine = engine)
     args$controls$with_layer <- FALSE
     spec <- get_special(t, specials = names(controls$procs))
     if(is.null(spec)){
@@ -665,7 +666,8 @@ rwt_processor <- function(term, data, output_dim, param_nr, controls){
   
 }
 
-multiply_processor <- function(term, data, output_dim, param_nr, controls){
+multiply_processor <- function(term, data, output_dim, param_nr, controls,
+                               engine){
   
   terms <- get_terms_mult(term)
   
