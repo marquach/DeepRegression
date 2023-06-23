@@ -1,7 +1,7 @@
 
 # not really fast (torch 0.10 and luz 0.4 are now faster)
 fast_fit_function <- function(object, epochs, batch_size, data_x, data_y,
-                              validation_split){
+                              validation_split, print = F){
   
   data_x <- lapply(data_x, FUN = function(x) lapply(x, torch_tensor))
   data_y <- torch_tensor(data_y)$to(torch_long())
@@ -55,7 +55,7 @@ fast_fit_function <- function(object, epochs, batch_size, data_x, data_y,
       optimizer_t_manual$step()
       l_man <- c(l_man, loss_man$item())
     }
-    cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l_man)))
+    if(print) cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l_man)))
     
     object$model()$eval()
     valid_loss <- c()
@@ -76,7 +76,7 @@ fast_fit_function <- function(object, epochs, batch_size, data_x, data_y,
       
       valid_loss <- c(valid_loss, loss_val$item())
     }
-    cat(sprintf("Valid loss at epoch %d: %3f\n", epoch, mean(valid_loss)))
+    if(print)cat(sprintf("Valid loss at epoch %d: %3f\n", epoch, mean(valid_loss)))
     
   })
   }
@@ -84,32 +84,48 @@ fast_fit_function <- function(object, epochs, batch_size, data_x, data_y,
 
 
 plain_loop_fit_function <- function(model, epochs, batch_size, data_x, data_y,
-                                    validation_split){
+                                    validation_split, verbose = F){
   
   data_x <- torch_tensor(as.matrix(data_x))
   data_y <- torch_tensor(data_y)
   num_data_points <- data_y$size(1)
-  data_y <- data_y$view(c(num_data_points,1))
-  num_batches <- floor(data_y$size(1)/batch_size)
+  
+  train_ids <- sample(1:num_data_points,
+                      size = (1-validation_split) * num_data_points)
+  valid_ids <- sample(
+    setdiff(1:num_data_points,train_ids),
+    size = validation_split * num_data_points)
+  
+  
+  data_x_train <- data_x[train_ids,]
+  data_x_valid <- data_x[valid_ids,]
+  
+  data_y_train <- data_y[train_ids]
+  data_y_valid <- data_y[valid_ids]
+  
+  num_batches_train <- floor(data_y_train$size(1)/batch_size)
+  num_batches_valid <- floor(data_y_valid$size(1)/batch_size)
   
   optimizer_t_manual <- optim_adam(model$parameters)
   
   for(epoch in 1:epochs){
+    
     model$train()
     l_man <- c()
+    
     # rearrange the data each epoch
-    permute <- torch_randperm(data_y$size(1)) + 1L
-    data_x <- data_x[permute,]
-    data_y <- data_y[permute]
+    permute <- torch_randperm(data_y_train$size(1)) + 1L
+    data_x_train <- data_x_train[permute,]
+    data_y_train <- data_y_train[permute]
     
     # manually loop through the batches
-    for(batch_idx in 1:num_batches){
+    for(batch_idx in 1:num_batches_train){
       
       # here index is a vector of the indices in the batch
       index <- (batch_size*(batch_idx-1) + 1):(batch_idx*batch_size)
       
-      x <- data_x[index,]
-      y <- data_y[index]
+      x <- data_x_train[index,]
+      y <- data_y_train[index]
       
       optimizer_t_manual$zero_grad()
       
@@ -117,9 +133,35 @@ plain_loop_fit_function <- function(model, epochs, batch_size, data_x, data_y,
       loss_man <- torch_mean(-output$log_prob(y))
       loss_man$backward()
       optimizer_t_manual$step()
+      
+      
       l_man <- c(l_man, loss_man$item())
     }
-    #cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l_man)))
+    if(verbose) cat(sprintf("Loss at epoch %d: %3f\n", epoch, mean(l_man)))
+    
+    model$eval()
+    valid_loss <- c()
+    
+    with_no_grad({
+      # manually loop through the batches
+      for(batch_idx in 1:num_batches_valid){
+        
+        # here index is a vector of the indices in the batch
+        index <- (batch_size*(batch_idx-1) + 1):(batch_idx*batch_size)
+        
+        x <- data_x_valid[index,]
+        y <- data_y_valid[index]
+        
+        output <- model(x)
+        loss_val <- torch_mean(-output$log_prob(y))
+        
+        valid_loss <- c(valid_loss, loss_val$item())
+      }
+      if(verbose) cat(sprintf("Valid loss at epoch %d: %3f\n", epoch, mean(valid_loss)))
+      
+    })
+    
+    
   }
 }
 
