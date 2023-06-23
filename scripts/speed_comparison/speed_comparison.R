@@ -73,7 +73,6 @@ b <- iter$.next()
 
 pre_fit <- net_torch %>% luz::setup(loss = nn_mse_loss(),
                                optimizer = optim_adam)
-pre_fit %>% fit(test_dl, epochs = 100, verbose = T)
 
 input <- gam_data
 input <- torch_tensor(input)
