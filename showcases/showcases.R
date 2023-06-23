@@ -1,14 +1,8 @@
-library(torch)
-library(luz)
 library(mgcv) # just used to fit gam model
 library(ggplot2)
 library(gamlss)
 devtools::load_all("deepregression-main/")
-source('scripts/deepregression_functions.R')
-
-# Up to this moment (02.27.2023), the torch implementation is only able to handle
-# deepregression models which are build without the orthogonalizion.
-orthog_options = orthog_control(orthogonalize = F)
+options(orthogonalize = F)
 
 # Fit some simple models like linear, additive and deep models with
 # gam, deepregression tf and deepregression torch
@@ -24,9 +18,7 @@ plot(toy_data$x, toy_data$y)
 intercept_only_torch <-  deepregression(
   list_of_formulas = list(loc = ~ 1, scale = ~ 1),
   data = toy_data, y = toy_data$y,
-  orthog_options = orthog_options, return_prepoc = F, 
-  subnetwork_builder = subnetwork_init_torch,
-  model_builder = torch_dr,
+  return_prepoc = F, 
   engine = "torch")
 
 attributes(intercept_only_torch$model)$class #is a luz module generator 
@@ -41,22 +33,20 @@ toy_gamlss <- gamlss(formula = y ~ -1+x,
 
 mod_torch <- deepregression(
   list_of_formulas = list(loc = ~ -1 + x, scale = ~ -1 + x),
-  data = toy_data, y = toy_data$y, orthog_options = orthog_options, return_prepoc = F, 
-  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
-  engine = "torch")
+  data = toy_data, y = toy_data$y,  engine = "torch")
 
 mod_torch
 # default lr = 0.001 change to 0.1 
 mod_torch$model <- mod_torch$model  %>% set_opt_hparams(lr = 0.1)
 # torch approach does have a generic fit function 
-mod_torch %>% fit(epochs = 500, early_stopping = T)
+mod_torch %>% fit(epochs = 500, early_stopping = F, validation_split = 0)
 
 cbind(
   'gamlss' = c(toy_gamlss$mu.coefficients, toy_gamlss$sigma.coefficients),
   'torch' = c(unlist(mod_torch %>% coef(which_param = 1)),
               unlist(mod_torch %>% coef(which_param = 2))),
   "true" = c(0,2))
-# torch even closer to true parameters
+
 
 
 ################################################################################
@@ -72,13 +62,12 @@ gam_mgcv <- gam(mcycle$accel ~ 1 + s(times), data = mcycle)
 gam_data <- model.matrix(gam_mgcv)
 gam_tf <- deepregression(
   list_of_formulas = list(loc = ~ 1 + s(times), scale = ~ 1),
-  data = mcycle, y = mcycle$accel, orthog_options = orthog_options,
+  data = mcycle, y = mcycle$accel,
   engine = "tf"
   )
 gam_torch <- deepregression(
   list_of_formulas = list(loc = ~ 1 + s(times), scale = ~ 1),
-  data = mcycle, y = mcycle$accel, orthog_options = orthog_options,
-  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
+  data = mcycle, y = mcycle$accel,
   engine = "torch")
 
 # adapt learning rate to converge faster
@@ -135,15 +124,14 @@ nn_torch <- nn_module(
 
 deep_model_tf <- deepregression(
   list_of_formulas = list(loc = formula_deep, scale = ~ 1),
-  data = data, y = y,orthog_options = orthog_options,
+  data = data, y = y,
   list_of_deep_models = list(deep_model = nn_tf), engine = "tf"
 )
 
 deep_model_torch <- deepregression(
   list_of_formulas = list(loc = formula_deep, scale = ~ 1),
-  data = data, y = y, orthog_options = orthog_options,
+  data = data, y = y,
   list_of_deep_models = list(deep_model = nn_torch),
-  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch"
 )
 
@@ -151,8 +139,8 @@ deep_model_torch <- deepregression(
 deep_model_tf$model
 deep_model_torch
 
-deep_model_tf %>% fit(epochs = 500, early_stopping = F)
-deep_model_torch %>% fit(epochs = 500, early_stopping = F)
+deep_model_tf %>% fit(epochs = 50, early_stopping = F)
+deep_model_torch %>% fit(epochs = 50, early_stopping = F)
 
 plot(deep_model_tf %>% fitted(),
      deep_model_torch %>% fitted(),
@@ -163,7 +151,7 @@ cor(deep_model_tf %>% fitted(),
 # structured model (intercept + linear + additve part)
 
 formula_structured <- ~ 1  + s(xa) + x1
-
+orthog_options <- orthog_control(orthogonalize = F)
 structured_tf <- deepregression(
   list_of_formulas = list(loc = formula_structured, scale = ~ 1),
   data = data, y = y,orthog_options = orthog_options,
@@ -173,16 +161,12 @@ structured_tf <- deepregression(
 structured_torch <- deepregression(
   list_of_formulas = list(loc = formula_structured, scale = ~ 1),
   data = data, y = y, orthog_options = orthog_options,
-  subnetwork_builder = subnetwork_init_torch, model_builder = torch_dr,
   engine = "torch"
 )
 
 # Summary
 structured_tf$model
 structured_torch
-
-structured_torch$model <- structured_torch$model  %>% set_opt_hparams(lr = 0.1)
-structured_tf$model$optimizer$lr <- tf$Variable(0.1, name = "learning_rate")
 
 structured_tf %>% fit(epochs = 1000, early_stopping = F, batch_size = 32)
 structured_torch %>% fit(epochs = 1000, early_stopping = F, batch_size = 32)
@@ -246,9 +230,6 @@ semi_structured_torch %>% fit(epochs = 100,
                               early_stopping = F, batch_size = 32)
 
 # Check generics
-
-
-
 
 semi_structured_torch_fitted <- 
   semi_structured_torch %>% fit(epochs = 100,
