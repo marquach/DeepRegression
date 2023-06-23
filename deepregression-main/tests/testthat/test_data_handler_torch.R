@@ -1,4 +1,4 @@
-context("Data Handler")
+context("Data Handler Torch")
 
 test_that("loop_through_pfc_and_call_trafo", {
   
@@ -62,13 +62,49 @@ test_that("loop_through_pfc_and_call_trafo", {
   
 })
 
-test_that("to_matrix", {
+test_that("properties of dataset torch", {
+  n <- 100
+  loc_x <- matrix(runif(n), ncol = 1)
+  scale_intercept <- loc_intercept <- matrix(rep(1, n), ncol = 1)
+  target <- matrix(runif(n = n), ncol = 1)
   
-  data <- list(array_input = dataset_mnist()$train[[1]][1:100,,])
-  expect_equal(to_matrix(data), data[[1]])
-  data <- data.frame(a=1:100,b=1:100)
-  expect_equal(to_matrix(data), as.matrix(data))
-  data <- list(a=1:100,b=1:100)
-  expect_equal(to_matrix(data), do.call("cbind", data))
+  data <- c(
+    list(list(loc_intercept, loc_x)),
+    list(list(scale_intercept)))
+  luz_dataset <- get_luz_dataset(df_list = data)
   
+  expect_true("deepregression_luz_dataset" %in% class(luz_dataset))
+  
+  # two parameters
+  expect_equal(length(luz_dataset$.getbatch(1)[[1]]), length(data)[[1]])
+  
+  expect_true(
+    luz_dataset$.length() == n
+  )
+  
+  luz_dataset <- get_luz_dataset(df_list = data, target = target)
+  # two parameters
+  expect_equal(length(luz_dataset$.getbatch(1)[[1]]), length(data)[[1]] )
+  
+  expect_true(
+    luz_dataset$.length() == n
+  )
+  expect_true(
+    length(luz_dataset$target) == n
+  )
+  expect_true(
+    ncol(luz_dataset$target) == 1
+  )
+  
+  luz_dataset$.getbatch(1)
+
 })
+
+
+
+
+
+
+
+
+

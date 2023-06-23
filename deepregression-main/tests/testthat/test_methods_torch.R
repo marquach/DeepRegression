@@ -1,4 +1,4 @@
-context("deepregression methods")
+context("deepregression methods Torch")
 
 test_that("all methods", {
   options(orthogonalize = F)

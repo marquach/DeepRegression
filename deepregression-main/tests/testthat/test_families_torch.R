@@ -1,4 +1,4 @@
-context("families")
+context("families Torch")
 
 test_that("torch families", {
   families =  c("normal", "bernoulli", "bernoulli_prob", "gamma", 
@@ -79,7 +79,7 @@ test_that("torch families can be fitted", {
         # define how parameters should be modeled
         list_of_formulas = list_of_formulas,
         list_of_deep_models = NULL,
-        family = dist, seed = 44)
+        family = dist, seed = 44, engine = "torch")
     
     cat("Fitting", dist, "\n")
     res <- mod %>% fit(epochs=2L, verbose = FALSE, view_metrics = FALSE)

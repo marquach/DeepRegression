@@ -1,4 +1,4 @@
-context("Deep ensembles")
+context("Deep ensembles Torch")
 
 test_that("deep ensemble", {
 

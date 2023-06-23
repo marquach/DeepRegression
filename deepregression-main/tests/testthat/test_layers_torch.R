@@ -1,4 +1,4 @@
-context("deepregression layers")
+context("deepregression layers Torch")
 
 test_that("lasso layers", {
   

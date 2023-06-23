@@ -1,5 +1,5 @@
-context("Main entry: deepregression")
-
+context("Main entry: deepregression Torch")
+options(orthogonalize = F)
 test_that("Simple additive model", {
   n <- 1500
   options(orthogonalize = F)
@@ -201,7 +201,7 @@ test_that("GAMs with shared weights", {
     list_of_deep_models = list(d = deep_model, g = deep_model),
     weight_options = weight_control(
       shared_layers = list(list(c("s(X3)","s(X2)")), NULL)
-    ), engine = "torch"
+    ), engine = "torch", 
   )
 
   expect_equal(mod$init_params$parsed_formulas_contents[[1]][[1]]$shared_name,
