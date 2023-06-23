@@ -851,10 +851,10 @@ get_weight_by_name <- function(mod, name, param_nr=1, postfixes="")
   pfc_term <- mod$init_params$parsed_formulas_contents[[param_nr]][[which(names_pfc==name)]]
   if(!is.null(pfc_term$shared_name)){
     if(mod$engine == "tf") this_name <- paste0(pfc_term$shared_name, postfixes)
-    if(mod$engine == "torch") this_name <- name
+    if(mod$engine == "torch") this_name <- paste0(pfc_term$shared_name, postfixes)
   }else{
     if(mod$engine == "tf")  this_name <- paste0(makelayername(name, param_nr), postfixes)
-    if(mod$engine == "torch") this_name <- name
+    if(mod$engine == "torch") this_name <- paste(name, param_nr, sep = "_")
   }
   # names <- get_mod_names(mod)
   if(length(this_name)>1){
