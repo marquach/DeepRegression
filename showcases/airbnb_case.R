@@ -57,8 +57,8 @@ mod_torch <- deepregression(y = y, data = airbnb,
                          engine = "torch"
                          )
 
-mod_tf %>% fit(epochs = 250, validation_split = 0.2)
-mod_torch %>% fit(epochs = 250, validation_split = 0.2)
+mod_tf %>% fit(epochs = 25, validation_split = 0.2, verbose = T)
+mod_torch %>% fit(epochs = 10, validation_split = 0.2)
 
 fitted_vals_tf <- mod_tf %>% fitted()
 fitted_vals_torch <- mod_torch %>% fitted()
@@ -83,8 +83,9 @@ cbind(coef(mod_tf, type="smooth")[[2]],
       coef(mod_torch, type="smooth")[[2]])
 
 coef(mod_tf, which_param = 1)
-coef(mod_tf, which_param = 2)
 coef(mod_torch, which_param = 1)
+
+coef(mod_tf, which_param = 2)
 coef(mod_torch, which_param = 2)
 
 plot(mod_tf, which = 2)
@@ -99,7 +100,7 @@ res_cv_torch <- mod_torch %>% cv(plot = F, cv_folds = 3, epochs = 10)
 dist_tf <- mod_tf %>% get_distribution()
 dist_torch <- mod_torch %>% get_distribution()
 str(dist_tf$tensor_distribution, 1)
-str(dist_torch, 1)
+attributes(dist_torch)
 
 
 first_obs_airbnb <- as.data.frame(airbnb)[1,,drop=F]
@@ -183,17 +184,22 @@ shared_dnn_torch <- deepregression(
   mapping = list(1, 2, 1:2),
   list_of_deep_models = list(embd_mod = embd_mod_torch),
   orthog_options = orthog_options,
-  data = airbnb_texts_torch,
-  subnetwork_builder = subnetwork_init_torch,
-  model_builder = torch_dr
+  data = airbnb_texts_torch
 )
 
-shared_dnn_tf %>% fit(epochs = 50, validation_split = 0.1)
-shared_dnn_torch %>% fit(epochs = 50, validation_split = 0.1)
+shared_dnn_tf %>% fit(epochs = 10, validation_split = 0.1)
+shared_dnn_torch %>% fit(epochs = 10, validation_split = 0.1)
 
 plot(shared_dnn_tf %>% fitted(),
      shared_dnn_torch %>% fitted()
 )
+do.call(what = plot, 
+        list(shared_dnn_tf %>% fitted(),
+             shared_dnn_torch %>% fitted(),
+             xlab = "", ylab = ""))
+do.call(what = cor, 
+        list(shared_dnn_tf %>% fitted(),
+             shared_dnn_torch %>% fitted()))
 abline(a = 0, b = 1)
 
 # working with images
@@ -297,11 +303,11 @@ mod_cnn_torch <- deepregression(
 
 
 mod_cnn_tf %>% fit(
-   epochs = 10, batch_size = 56,
+   epochs = 2, batch_size = 56,
    early_stopping = F)
 
 mod_cnn_torch %>% fit(
-  epochs = 10, batch_size = 56,
+  epochs = 2, batch_size = 56,
   early_stopping = F)
 
 
