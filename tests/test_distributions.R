@@ -3,42 +3,37 @@ library(luz)
 library(torchvision)
 library(gamlss)
 devtools::load_all("deepregression-main/")
-source('scripts/deepregression_functions.R')
+
 orthog_options = orthog_control(orthogonalize = F)
 
 set.seed(42)
-n <- 100
+n <- 1000
 x <- sample(x = log(85:125), size = n, replace = T)
 mu <- -0.5 + 2*x
 y <- rpois(n = n, lambda = exp(mu))
-
-
 data_poisson <- data.frame(x)
 
-#not sure why it does not work
 model_poisson_tf <- deepregression(y = y*1.0,
                                    list_of_formulas = list( rate = ~ 1 + x),
                                    data = data_poisson,
                                    orthog_options = orthog_options,
                                    family = "poisson")
-model_poisson_tf %>% fit(epochs = 100, validation_split = 0.2)
+model_poisson_tf %>% fit(epochs = 1000, validation_split = 0)
 
 model_poisson_torch <- deepregression(y = y,
                                       list_of_formulas = list( rate = ~1 + x),
                                    data = data_poisson,
                                    family = "poisson",
                                    engine = "torch",
-                                   orthog_options = orthog_options,
-                                   subnetwork_builder = subnetwork_init_torch,
-                                   model_builder = torch_dr)
-model_poisson_torch$model <- model_poisson_torch$model  %>%
-  set_opt_hparams(lr = 0.1)
-model_poisson_torch %>% fit(epochs = 1000, validation_split = 0.1)
+                                   orthog_options = orthog_options)
+
+model_poisson_torch %>% fit(epochs = 1000, validation_split = 0)
 
 
 res_poisson <- cbind("torch" = unlist(model_poisson_torch %>% coef()),
-                      #"tf" = unlist(model_binomial_tf %>% coef()),
-                      "glm" = rev(coef(glm(formula = y~x, family = poisson))))
+                      "tf" = unlist(model_poisson_tf %>% coef()),
+                      "glm" = rev(coef(glm(formula = y~x, family = poisson))),
+                     "true" = c(2, -0.5))
 res_poisson
 # Gamma (no natural link)
 set.seed(42)
@@ -122,9 +117,11 @@ model_bernoulli_torch <- deepregression(y = y,
                                       orthog_options = orthog_options,
                                       subnetwork_builder = subnetwork_init_torch,
                                       model_builder = torch_dr)
-model_bernoulli_torch %>% fit(epochs = 500, validation_split = 0.2)
+model_bernoulli_torch %>% fit(epochs = 100, validation_split = 0.2)
+model_bernoulli_torch %>% coef()
 
 res_binomial <- cbind("torch" = unlist(model_bernoulli_torch %>% coef()),
                       "tf" = unlist(model_bernoulli_tf %>% coef()),
                       "glm" = rev(coef(glm(y ~ 1 + x, family = "binomial"))))
+res_binomial
       
