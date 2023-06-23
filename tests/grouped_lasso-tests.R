@@ -4,7 +4,6 @@ library(luz)
 library(caret)
 library(gglasso)
 devtools::load_all("deepregression-main/")
-source("scripts/deepregression_functions.R")
 
 set.seed(42)
 tf$random$set_seed(42)
