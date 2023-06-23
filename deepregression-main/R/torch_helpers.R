@@ -9,6 +9,7 @@ get_luz_dataset <- dataset(
   
   initialize = function(df_list, target = NULL, length = NULL) {
     
+    self$df_list <- df_list
     self$data <- self$setup_loader(df_list)
     self$target <- target
     if(!is.null(length)) self$length <- length 
@@ -29,7 +30,8 @@ get_luz_dataset <- dataset(
   
   .length = function() {
     if(!is.null(self$length)) return(self$length)
-    length(self$target)
+    
+    return(nrow(self$df_list[[1]][[1]]))
     
   },
   
