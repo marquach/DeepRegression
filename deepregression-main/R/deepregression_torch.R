@@ -13,7 +13,6 @@ model_torch <-  function(submodules_list){
       self$subnetwork <- nn_module_list(submodules_list)
       names(self$subnetwork$.__enclos_env__$private$modules_) <- 
         names(submodules_list)
-      
     },
     
     forward = function(dataset_list) {
@@ -106,7 +105,7 @@ from_preds_to_dist_torch <- function(
     add_layer_shared_pred = function(input_shape, units) 
       layer_dense_torch(input_shape = input_shape, units = units,
                         use_bias = FALSE),
-    trafo_list = NULL, mapping_now = F){
+    trafo_list = NULL, mapping_now = T){
   
   # i think its better to do combination later,
   # because if i do this way i have to load data for each parameter 
