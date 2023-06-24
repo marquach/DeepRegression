@@ -47,12 +47,11 @@ get_mod_names <- function(x)
 get_weight_by_opname <- function(mod, name, partial_match = FALSE, 
                                  param_nr = NULL)
 {
-  if(mod$engine == "tf"){
   lay <- get_layer_by_opname(mod, name, partial_match = partial_match)
+  if(mod$engine == "tf"){
   wgts <- lay$weights
   }
   if(mod$engine == "torch"){
-    lay <- get_layer_by_opname(mod, name, partial_match = partial_match)
     wgts <- lay$parameters
     wgts <- lapply(wgts, function(x) x$t())
   }
@@ -75,9 +74,7 @@ get_layer_by_opname <- function(mod, name, partial_match = FALSE)
 {
   
   # names <- get_mod_names(mod)
-  if(mod$engine == "tf") w <- get_layernr_by_opname(
-    mod, name, partial_match = partial_match)
-  if(mod$engine == "torch") w <- get_layernr_by_opname(
+   w <- get_layernr_by_opname(
     mod, name, partial_match = partial_match)
   
   if(length(w)==0)
