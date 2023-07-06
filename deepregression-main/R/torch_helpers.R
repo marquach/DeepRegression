@@ -9,33 +9,37 @@ get_luz_dataset <- dataset(
   
   initialize = function(df_list, target = NULL, length = NULL) {
     
+    if(length(df_list) != 1) {
+      self$getbatch <- self$getbatch_normal
+      setup_loader <- self$setup_loader_normal
+    }
+    
+    if(length(df_list) == 1) {
+      self$getbatch <- self$getbatch_mse
+      setup_loader <- self$setup_loader_mse
+    }
+    
     self$df_list <- df_list
-    self$data <- self$setup_loader(df_list)
+    
+    self$data <- setup_loader(df_list)
     self$target <- target
+    
     if(!is.null(length)) self$length <- length 
+    
     
   },
   
   # has to be fast because is used very often (very sure this a bottle neck)
   .getbatch = function(index) {
-    
-    indexes <- lapply(self$data,
-                      function(x) lapply(x, function(y) y(index)))
-    
-    if(is.null(self$target)) return(list(indexes))
-    
-    target <- self$target[index]
-    list(indexes, target)
+    self$getbatch(index)
   },
   
   .length = function() {
     if(!is.null(self$length)) return(self$length)
-    
     return(nrow(self$df_list[[1]][[1]]))
-    
   },
   
-  setup_loader = function(df_list){
+  setup_loader_normal = function(df_list){
     
     lapply(df_list, function(x) 
       lapply(x, function(y){
@@ -49,7 +53,37 @@ get_luz_dataset <- dataset(
         }
         function(index) torch_tensor(y[index, ,drop = F])
       }))
-  }
+  },
+  
+  setup_loader_mse = function(df_list){
+    df_list <- unlist(df_list, recursive = F)
+    
+    lapply(df_list, function(y){
+        if((ncol(y)==1) & check_data_for_image(y)){
+          return( 
+            function(index) torch_stack(
+              lapply(index, function(x) y[x, ,drop = F] %>% base_loader() %>%
+                       transform_to_tensor())))
+          # this torch_stack(...) allows to use .getbatch also when
+          # we use image data.
+        }
+        function(index) torch_tensor(y[index, ,drop = F])
+      })
+  },
+  getbatch_normal = function(index){
+    indexes <- lapply(self$data,
+                      function(x) lapply(x, function(y) y(index)))
+    if(is.null(self$target)) return(list(indexes))
+    target <- self$target[index]
+    list(indexes, target)},
+  
+  getbatch_mse = function(index){
+    
+    indexes <- lapply(self$data, function(y) y(index))
+    
+    if(is.null(self$target)) return(list(indexes))
+    target <- self$target[index]
+    list(indexes, target)}
 )
 
 
