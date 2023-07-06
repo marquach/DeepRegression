@@ -198,7 +198,7 @@ predict.deepregression <- function(
       if(object$engine == "torch") {
         input_model <- 
           prepare_data_torch(object$init_params$parsed_formulas_contents,
-                             input_x = input_model)
+                             input_x = input_model, object = object)
         object$model <- object$model()
         object$model$eval()
       }
@@ -217,7 +217,7 @@ predict.deepregression <- function(
       if(object$engine == "torch") {
         newdata_processed <- 
           prepare_data_torch(object$init_params$parsed_formulas_contents,
-                             input_x = newdata_processed)
+                             input_x = newdata_processed, object = object)
         object$model <- object$model()
         object$model$eval()
       }
@@ -734,7 +734,7 @@ get_distribution <- function(
     if(x$engine == "torch"){
       model_input <- 
           prepare_data_torch(x$init_params$parsed_formulas_contents,
-                             input_x = model_input)
+                             input_x = model_input, object = x)
         x$model <- x$model()
     }
     disthat <- x$model(model_input)
@@ -748,7 +748,7 @@ get_distribution <- function(
     if(x$engine == "torch"){
       newdata_processed <- 
         prepare_data_torch(x$init_params$parsed_formulas_contents,
-                           input_x = newdata_processed)
+                           input_x = newdata_processed, object = x)
       x$model <- x$model()
     }
     disthat <- x$model(newdata_processed)
@@ -796,7 +796,7 @@ log_score <- function(
                               engine = x$engine)
     if(x$engine == "torch"){
       this_data <- prepare_data_torch(pfc = x$init_params$parsed_formulas_content,
-                         input_x = this_data)
+                         input_x = this_data, object = x)
       x$model <- x$model()
     }
   
@@ -811,7 +811,7 @@ log_score <- function(
     
     if(x$engine == "torch"){
       this_data <- prepare_data_torch(pfc = x$init_params$parsed_formulas_content,
-                                      input_x = this_data)
+                                      input_x = this_data, object = x)
       x$model <- x$model()
       x$model$eval()
     }
