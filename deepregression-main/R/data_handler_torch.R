@@ -1,4 +1,4 @@
-prepare_data_torch <- function(pfc, input_x, target = NULL){
+prepare_data_torch <- function(pfc, input_x, target = NULL, object = NULL){
   
   distr_datasets_length <- sapply(
     1:length(pfc),
@@ -15,6 +15,12 @@ prepare_data_torch <- function(pfc, input_x, target = NULL){
   
   df_list <- lapply(distr_datasets_index, function(x){ input_x[x] })
   
+  if(!is.null(object)){
+    if(sum(names(object$model()$modules) == "subnetwork")==1){
+    df_list <- df_list[1]}
+  }
+  if(object$init_params$family == "bernoulli") df_list <- c(df_list, df_list)
+  
   if(is.null(target)) return(df_list)
   
   get_luz_dataset(df_list = df_list, target = torch_tensor(target)$to(torch_float()))
@@ -30,7 +36,7 @@ prepare_input_list_model <- function(input_x, input_y,
     input_dataloader <- prepare_data_torch(
       pfc  = object$init_params$parsed_formulas_content,
       input_x = input_x,
-      target = input_y)
+      target = input_y, object = object)
     
     #no validation
     if(is.null(validation_data) & identical(validation_split, 0)){
