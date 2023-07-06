@@ -200,10 +200,10 @@ from_preds_to_dist_torch <- function(
     names(list_pred_param) <- names_families(family)
   }
 
-  preds <- lapply(list_pred_param, model_torch)
+  #preds <- lapply(list_pred_param, model_torch)
   
   # generate output
-  out <- from_distfun_to_dist_torch(dist_fun, preds)
+  out <- from_distfun_to_dist_torch(dist_fun, list_pred_param)
   
 }
 
