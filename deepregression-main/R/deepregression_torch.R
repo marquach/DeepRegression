@@ -6,7 +6,7 @@
 #' @return nn_module
 #' @export
 
-model_torch <-  function(name, submodules_list){
+model_torch <-  function(submodules_list){
   nn_module(
     classname = "torch_model",
     initialize = function() {

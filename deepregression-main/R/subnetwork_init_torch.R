@@ -72,6 +72,6 @@ subnetwork_init_torch <- function(pp, deep_top = NULL,
     names(outputs) <- paste(sapply(1:length(pp_in),
                              function(i) pp_lay[[i]]$term), param_nr, sep = "_")
     outputs
-    model_torch(outputs)()
+    model_torch(outputs)
   }
 }
