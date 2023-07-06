@@ -17,7 +17,7 @@ prepare_data_torch <- function(pfc, input_x, target = NULL){
   
   if(is.null(target)) return(df_list)
   
-  get_luz_dataset(df_list = df_list, target = torch_tensor(target)$to(torch_float()))
+  get_luz_dataset(df_list = df_list, target = target)
   }
 
 prepare_input_list_model <- function(input_x, input_y,
@@ -27,10 +27,11 @@ prepare_input_list_model <- function(input_x, input_y,
                                      early_stopping){
   
   if(object$engine == "torch"){
-    input_dataloader <- prepare_data_torch(
-      pfc  = object$init_params$parsed_formulas_content,
-      input_x = input_x,
-      target = input_y)
+    input_dataloader <-  get_luz_dataset(df_list = input_x, target = input_y)
+    #input_dataloader <- prepare_data_torch(
+    #  pfc  = object$init_params$parsed_formulas_content,
+    #  input_x = input_x,
+    #  target = input_y)
     
     #no validation
     if(is.null(validation_data) & identical(validation_split, 0)){
@@ -42,9 +43,7 @@ prepare_input_list_model <- function(input_x, input_y,
       train_dl <- dataloader(input_dataloader, batch_size = batch_size,
                              shuffle = T)
       
-      validation_dataloader <- prepare_data_torch(
-        pfc  = object$init_params$parsed_formulas_content,
-        input_x = validation_data[[1]],
+      validation_dataloader <- get_luz_dataset(df_list = validation_data[[1]],
         target = validation_data[[2]])
       
       valid_dl <- dataloader(validation_dataloader, batch_size = batch_size,
@@ -60,9 +59,11 @@ prepare_input_list_model <- function(input_x, input_y,
       
       if(any(unlist(lapply(input_x, check_data_for_image)))) 
         cat(sprintf("Found %s validated image filenames \n", length(train_ids)))
-      train_dl <- dataloader(train_ds, batch_size = batch_size, shuffle = T)
-      if(any(unlist(lapply(input_x, check_data_for_image))))
+      
+     if(any(unlist(lapply(input_x, check_data_for_image))))
         cat(sprintf("Found %s validated image filenames \n", length(valid_ids)))
+      
+      train_dl <- dataloader(train_ds, batch_size = batch_size, shuffle = T)
       valid_dl <- dataloader(valid_ds, batch_size = batch_size, shuffle = T)
     }
     

@@ -6,17 +6,15 @@
 #' @return nn_module
 #' @export
 
-model_torch <-  function(submodules_list){
+model_torch <-  function(name, submodules_list){
   nn_module(
     classname = "torch_model",
     initialize = function() {
-      self$subnetwork <- nn_module_list(submodules_list)
-      names(self$subnetwork$.__enclos_env__$private$modules_) <- 
-        names(submodules_list)
+      self$subnetwork <- nn_module_dict(submodules_list)
     },
     
     forward = function(dataset_list) {
-      subnetworks <- lapply(1:length(self$subnetwork), function(x){
+      subnetworks <- lapply(1:length(self$subnetwork$children), function(x){
         self$subnetwork[[x]](dataset_list[[x]])
       })
       
@@ -49,7 +47,7 @@ model_torch <-  function(submodules_list){
 torch_dr <- function(
     list_pred_param,
     optimizer = torch::optim_adam,
-    model_fun = NULL, #nicht mehr nötig bei Torch?
+    model_fun = luz::setup, #nicht mehr nötig bei Torch?
     monitor_metrics = list(),
     from_preds_to_output = from_preds_to_dist_torch,
     loss = from_dist_to_loss_torch(family = list(...)$family,
@@ -63,7 +61,7 @@ torch_dr <- function(
   model <- out
   
   # compile model
-  model <- model %>% luz::setup(optimizer = optimizer,
+  model <- model %>% model_fun(optimizer = optimizer,
                                 loss = loss,
                                 metrics = monitor_metrics)
   return(model)
@@ -105,7 +103,7 @@ from_preds_to_dist_torch <- function(
     add_layer_shared_pred = function(input_shape, units) 
       layer_dense_torch(input_shape = input_shape, units = units,
                         use_bias = FALSE),
-    trafo_list = NULL, mapping_now = T){
+    trafo_list = NULL, mapping_now = F){
   
   # i think its better to do combination later,
   # because if i do this way i have to load data for each parameter 
@@ -198,11 +196,13 @@ from_preds_to_dist_torch <- function(
   if(is.null(names(list_pred_param))){
     names(list_pred_param) <- names_families(family)
   }
-
-  preds <- lapply(list_pred_param, model_torch)
+  
+  helper_forward <- get_help_forward_torch(list_pred_param)
   
   # generate output
-  out <- from_distfun_to_dist_torch(dist_fun, preds)
+  #out <- from_distfun_to_dist_torch(dist_fun, preds)
+  out <- from_distfun_to_dist_torch(dist_fun, list_pred_param, 
+                                        helper_foward = helper_forward)
   
 }
 
@@ -213,33 +213,58 @@ from_preds_to_dist_torch <- function(
 #' @return a symbolic torch distribution
 #' @export
 #'
-from_distfun_to_dist_torch <- function(dist_fun, preds){
+from_distfun_to_dist_torch <- function(dist_fun, preds, helper_foward){
+  
   nn_module(
     
     initialize = function() {
       
-      self$distr_parameters <- nn_module_list(
-        lapply(preds, function(x) x()))
-      names(self$distr_parameters$.__enclos_env__$private$modules_) <- 
-        names(preds)
+      self$helper_foward <- helper_foward
+      
+      self$distr_parameters <- nn_module_dict(unlist(preds))
+      
+      
+      ncol_helper <- attr(dist_fun, "nrparams_dist")
+      nrow_help <- sum(
+        unlist(lapply(seq_len(length(self$distr_parameters$children)),
+                      function(x)
+                        call_module_and_get_outputdim(self$distr_parameters[[x]]))))
+      
+      if(any(names(self$helper_foward$params)=="both")){
+        both_index <- which(names(self$helper_foward$params)=="both")
+        help_matrix <- matrix(data = NA, nrow = nrow_help, ncol = ncol_helper)
+      
+        mat_test <- Reduce(
+          x = lapply(unique(self$helper_foward$params[-both_index]),
+                   FUN = function(x) x == self$helper_foward$params[-both_index]),
+        f = cbind)
+      
+      help_matrix[seq_len(dim(mat_test)[1]),] <- mat_test
+      help_matrix[which(is.na(help_matrix))] <- 1
+      } else{
+        help_matrix <- Reduce(
+          x = lapply(unique(self$helper_foward$params),
+                     FUN = function(x) x == self$helper_foward$params),
+          f = cbind)
+      }
+      
+      self$helper_mat <- torch_tensor(help_matrix, dtype = torch_float())
     },
     
     forward = function(dataset_list) {
-      distribution_parameters <- lapply(
-        1:length(self[[1]]), function(x){
-          self[[1]][[x]](dataset_list[[x]])
-        })
       
-      if(any(names(self[[1]]$.__enclos_env__$private$modules_) == "both")){
-        distribution_parameters <- torch_sum(
-          torch_stack(
-            list(
-              torch_cat(distribution_parameters[-length(self[[1]])], dim = 2),
-              distribution_parameters[[length(self[[1]])]])
-          ), dim = 1)
-        
-        distribution_parameters <- 
-          torch_split(distribution_parameters, split_size = 1, dim = 2) }
+      distribution_parameters <- lapply(seq_len(length(self$helper_foward$layers)),
+                                        FUN = function(x){
+                                          used_layer <- self$distr_parameters[[self$helper_foward$layers[x]]]
+                                          used_layer(dataset_list[[x]]) 
+                                        })
+      
+      distribution_parameters <- torch_cat(distribution_parameters, dim = -1)
+      
+      distribution_parameters <- torch_matmul(self = distribution_parameters, 
+                                              self$helper_mat)
+      
+      distribution_parameters <- torch_split(distribution_parameters, split_size = 1, dim = -1)
       
       dist_fun(distribution_parameters)
     }

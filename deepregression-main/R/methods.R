@@ -196,9 +196,6 @@ predict.deepregression <- function(
                                   engine = object$engine)
       
       if(object$engine == "torch") {
-        input_model <- 
-          prepare_data_torch(object$init_params$parsed_formulas_contents,
-                             input_x = input_model)
         object$model <- object$model()
         object$model$eval()
       }
@@ -215,9 +212,6 @@ predict.deepregression <- function(
         engine = object$engine)
       
       if(object$engine == "torch") {
-        newdata_processed <- 
-          prepare_data_torch(object$init_params$parsed_formulas_contents,
-                             input_x = newdata_processed)
         object$model <- object$model()
         object$model$eval()
       }
@@ -450,13 +444,10 @@ print.deepregression <- function(
   ...
 )
 {
-  suppressWarnings(
-    if(grepl("luz", attr(x$model, "class"))){
-    model_summary <- lapply(seq_len(length(x$init_params$additive_predictors)),
-           function(y) x$model()[[1]][[y]][[1]])
-    names(model_summary) <- names(x$init_params$additive_predictors)
+  if(inherits(x$model, "luz_module_generator")){
+    model_summary <- x$model()[[1]]
     print(model_summary)
-  } else print(x$model))
+  } else print(x$model)
   fae <- x$init_params$list_of_formulas
   cat("Model formulas:\n---------------\n")
   invisible(sapply(1:length(fae), function(i){ cat(names(fae)[i],":\n"); print(fae[[i]])}))
@@ -853,7 +844,7 @@ get_weight_by_name <- function(mod, name, param_nr=1, postfixes="")
     if(mod$engine == "tf") this_name <- paste0(pfc_term$shared_name, postfixes)
     if(mod$engine == "torch") this_name <- paste0(pfc_term$shared_name, postfixes)
   }else{
-    if(mod$engine == "tf")  this_name <- paste0(makelayername(name, param_nr), postfixes)
+    if(mod$engine == "tf") this_name <- paste0(makelayername(name, param_nr), postfixes)
     if(mod$engine == "torch") this_name <- paste(name, param_nr, sep = "_")
   }
   # names <- get_mod_names(mod)

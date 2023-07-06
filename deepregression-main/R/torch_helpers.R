@@ -8,10 +8,9 @@ get_luz_dataset <- dataset(
   "deepregression_luz_dataset",
   
   initialize = function(df_list, target = NULL, length = NULL) {
-    
     self$df_list <- df_list
     self$data <- self$setup_loader(df_list)
-    self$target <- target
+    if(!is.null(target)) self$target <- torch_tensor(target)$to(torch_float())
     if(!is.null(length)) self$length <- length 
     
   },
@@ -19,8 +18,7 @@ get_luz_dataset <- dataset(
   # has to be fast because is used very often (very sure this a bottle neck)
   .getbatch = function(index) {
     
-    indexes <- lapply(self$data,
-                      function(x) lapply(x, function(y) y(index)))
+    indexes <- lapply(self$data, function(y) y(index))
     
     if(is.null(self$target)) return(list(indexes))
     
@@ -31,14 +29,12 @@ get_luz_dataset <- dataset(
   .length = function() {
     if(!is.null(self$length)) return(self$length)
     
-    return(nrow(self$df_list[[1]][[1]]))
-    
+    return(nrow(self$df_list[[1]]))
   },
   
   setup_loader = function(df_list){
     
-    lapply(df_list, function(x) 
-      lapply(x, function(y){
+    lapply(df_list, function(y){
         if((ncol(y)==1) & check_data_for_image(y)){
           return( 
             function(index) torch_stack(
@@ -48,7 +44,7 @@ get_luz_dataset <- dataset(
           # we use image data.
         }
         function(index) torch_tensor(y[index, ,drop = F])
-      }))
+      })
   }
 )
 
@@ -136,4 +132,24 @@ choose_kernel_initializer_torch <- function(kernel_initializer, value = NULL){
   )
   
   kernel_initializer
+}
+
+
+get_help_forward_torch <- function(list_pred_param){
+  
+  layer_names <- lapply(X = list_pred_param, names)
+  
+  amount_distri_layer <- lapply(X = list_pred_param, length)
+  amount_distri_params <- seq_len(length(layer_names))
+  
+  names(amount_distri_params) <- names(amount_distri_layer)
+  used_params <- unlist(lapply(names(amount_distri_layer),
+                               FUN = function(x) rep(amount_distri_params[x],
+                                                     amount_distri_layer[[x]])))
+  
+  amount_unique_layers <- seq_len(length(unique(unlist(layer_names))))
+  names(amount_unique_layers) <- unique(unlist(layer_names))
+  used_layers <- unlist(lapply(unlist(layer_names), FUN = function(x) amount_unique_layers[x]))
+  
+  list(params = used_params, layers = used_layers)
 }
