@@ -171,3 +171,15 @@ choose_kernel_initializer_torch <- function(kernel_initializer, value = NULL){
   
   kernel_initializer
 }
+
+
+get_help_forward_torch <- function(list_pred_param){
+  
+  layer_names <- names(list_pred_param)
+  amount_layer <- length(list_pred_param)
+  amount_unique_layers <- seq_len(length(unique(unlist(layer_names))))
+  names(amount_unique_layers) <- unique(unlist(layer_names))
+  used_layers <- unlist(lapply(layer_names, FUN = function(x) amount_unique_layers[x]))
+  
+  used_layers
+}
