@@ -43,7 +43,7 @@ loop_through_pfc_and_call_trafo <- function(pfc, newdata = NULL, engine = "tf")
 prepare_data <- function(pfc, gamdata = NULL, engine = 'tf')
 {
   
-  ret_list <- loop_through_pfc_and_call_trafo(pfc = pfc, newdata = NULL, engine)
+  ret_list <- loop_through_pfc_and_call_trafo(pfc = pfc, engine = engine)
   if(!is.null(gamdata) & engine == 'tf')
     ret_list <- c(prepare_gamdata(gamdata), ret_list)
   
