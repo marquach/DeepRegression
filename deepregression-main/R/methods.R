@@ -290,7 +290,6 @@ fit.deepregression <- function(
   validation_split = ifelse(is.null(validation_data), 0.1, 0),
   callbacks = list(),
   convertfun = function(x) tf$constant(x, dtype="float32"),
-  return_inputs_model = F,
   ...
 )
 {
@@ -327,26 +326,16 @@ fit.deepregression <- function(
   input_y <- as.matrix(object$init_params$y)
   
   if(!is.null(validation_data)){
-    if(object$engine == "tf"){
+    
       validation_data <- 
         list(
           x = prepare_newdata(object$init_params$parsed_formulas_content, 
-                              validation_data[[1]], 
-                              gamdata = object$init_params$gamdata$data_trafos),
-          y = object$init_params$prepare_y_valdata(validation_data[[2]])
-    )
-    }
-    if(object$engine == "torch"){
-      validation_data <- 
-        list(
-          x = prepare_newdata(object$init_params$parsed_formulas_content, 
-                              validation_data[[1]], 
+                              newdata = validation_data[[1]], 
                               gamdata = object$init_params$gamdata$data_trafos,
                               engine = object$engine),
           y = object$init_params$prepare_y_valdata(validation_data[[2]])
         )
       }
-    }
 
   if(length(object$init_params$image_var)>0 & object$engine == "tf"){
     
@@ -381,7 +370,6 @@ fit.deepregression <- function(
     args <- append(args,
                    input_list_model[!names(input_list_model) %in%
                                       names(args)])
-    if(return_inputs_model & object$engine == "torch") return(args)
 
   ret <- suppressWarnings(do.call(object$fit_fun, args))
   if(save_weights) ret$weighthistory <- weighthistory$weights_last_layer
@@ -536,21 +524,14 @@ cv.deepregression <- function(
     if(print_folds) cat("Fitting Fold ", folds_iter, " ... ")
     st1 <- Sys.time()
 
-    # does not work?
-    # this_mod <- clone_model(x$model)
-    
     this_mod <- x
-    this_mod_test <- x$model 
-    
 
     train_ind <- this_fold[[1]]
     test_ind <- this_fold[[2]]
     
-    # has to be adapted torch
     x_train <- prepare_data(pfc = x$init_params$parsed_formulas_content,
                             gamdata = x$init_params$gamdata$data_trafos,
                             engine = x$engine)
-    
     
     train_data <- lapply(x_train, function(x)
         subset_array(x, train_ind))
@@ -558,8 +539,6 @@ cv.deepregression <- function(
         subset_array(x, test_ind))
     
     
-    # make callbacks
-    # callbacks specific to luz
     this_callbacks <- callbacks
     if(save_weights){
       weighthistory <- WeightHistory$new()
