@@ -255,7 +255,7 @@ predict_gen <- function(
   if(object$engine == "torch"){
     newdata_processed <-  prepare_data_torch(
       pfc  = object$init_params$parsed_formulas_content,
-      input_x = newdata_processed)
+      input_x = newdata_processed, object = object)
     
     cat(sprintf("Found %s validated image filenames \n", max_data))
     
