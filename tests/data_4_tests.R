@@ -12,3 +12,4 @@ set.seed(42)
 n <- 1000
 data = data.frame(matrix(rnorm(4*n), c(n,4)))
 colnames(data) <- c("x1","x2","x3","xa")
+y <- rnorm(n) + data$xa^2 + data$x1

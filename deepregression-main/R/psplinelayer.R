@@ -81,60 +81,7 @@ layer_spline = function(units = 1L, P, name, trainable = TRUE,
                               name = name, kernel_initializer = kernel_initializer))
 }
 
-#' Function to define spline as Torch layer
-#' 
-#' @param units integer; number of output units
-#' @param P matrix; penalty matrix
-#' @param name string; string defining the layer's name
-#' @param trainable logical; whether layer is trainable
-#' @param kernel_initializer initializer; for basis coefficients
-#' @return Torch layer
-#' @export
-layer_spline_torch <- function(P, units, name, trainable = TRUE,
-                               kernel_initializer = "glorot_uniform"){
-  
-  P <- torch_tensor(P)
-  spline_layer <- nn_linear(units, out_features = 1, bias = FALSE)
-  
-  if (kernel_initializer == "glorot_uniform") {
-    nn_init_xavier_uniform_(
-      tensor = spline_layer$weight,
-      gain = nn_init_calculate_gain(nonlinearity = "linear"))
-  }
-  
-  spline_layer$parameters$weight$register_hook(function(grad){
-    grad + torch_matmul((P+P$t()), spline_layer$weight$t())$t()
-  })
-  
-  if(!trainable) spline_layer$parameters$weight$requires_grad = FALSE
-  
-  spline_layer
-}
 
-#' Function to define a torch layer similar to a tf dense layer
-#' 
-#' @param units integer; number of output units
-#' @param name string; string defining the layer's name
-#' @param trainable logical; whether layer is trainable
-#' @param kernel_initializer initializer; for coefficients
-#' @return Torch layer
-#' @export
-layer_dense_torch <- function(units, name, trainable = TRUE,
-                              kernel_initializer = "glorot_uniform",
-                              use_bias = FALSE){
-  
-  layer <- nn_linear(units, out_features = 1, bias = use_bias)
-  
-  if (kernel_initializer == "glorot_uniform") {
-    nn_init_xavier_uniform_(
-      tensor = layer$weight,
-      gain = nn_init_calculate_gain(nonlinearity = "linear"))
-  }
-  
-  if(!trainable) layer$parameters$weight$requires_grad = FALSE
-  
-  layer
-}
 
 tf_incross = function(w, P) {
   python_path <- system.file("python", package = "deepregression")
