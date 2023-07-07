@@ -3,24 +3,6 @@ library(ggplot2)
 devtools::load_all("deepregression-main/")
 orthog_options = orthog_control(orthogonalize = F)
 
-model_mse <- function(submodules_list){
-  nn_module(
-    classname = "model_mse",
-    initialize = function() {
-      self$subnetwork <- lapply(submodules_list, function(x)
-        nn_module_dict(x))[[1]]
-    },
-    
-    forward = function(dataset_list) {
-      subnetworks <- lapply(1:length(self$subnetwork$children), function(x){
-        self$subnetwork[[x]](dataset_list[[1]][[x]])
-      })
-      
-      Reduce(f = torch_add, subnetworks)
-    }
-  )}
-
-
 plain_loop_fit_function <- function(model, epochs, batch_size, data_x, data_y,
                                     validation_split, verbose = F, shuffle = T){
   
@@ -131,7 +113,7 @@ setting_res <- lapply(X = 1:nrow(settings), function(x){
   semi_structured_torch <- deepregression(
     list_of_formulas = list(loc = formula, scale = ~ 1),
     data = data, y = y, orthog_options = orthog_options,
-    from_preds_to_output = function(x, ...) model_mse(x),
+    from_preds_to_output = function(x, ...) x[[1]],
     loss = nnf_mse_loss,
     engine = "torch")
   
@@ -213,7 +195,7 @@ setting_res <- lapply(X = 1:nrow(settings), function(x){
   results <- cbind(
     "plain_loop" = rev(lapply(model$parameters, as.array)),
     "plain_luz" = lapply(plain_luz_fitted$model$parameters, as.array),
-    "deepreg_torch" = rev(lapply(semi_structured_torch$model()$parameters, as.array)),
+    "deepreg_torch" = rev(coef(semi_structured_torch)),
     "deepreg_tf" = rev(coef(semi_structured_tf,1)),
     "gamlss" =coef(gamlss::gamlss(y~x, data = data)))
   
