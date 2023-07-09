@@ -7,17 +7,17 @@
 get_luz_dataset <- dataset(
   "deepregression_luz_dataset",
   
-  initialize = function(df_list, target = NULL, length = NULL) {
+  initialize = function(df_list, target = NULL, length = NULL, object) {
     
-    if(length(df_list) != 1) {
+    
+    if(!attr(make_torch_dist(object$init_params$family), "nrparams_dist") == 1 &
+       sum(names(object$model()$modules) == "subnetwork") == 1){
+      self$getbatch <- self$getbatch_specialcase
+      setup_loader <- self$setup_loader_specialcase
+    }else{
       self$getbatch <- self$getbatch_normal
       setup_loader <- self$setup_loader_normal
-    }
-    
-    if(length(df_list) == 1) {
-      self$getbatch <- self$getbatch_mse
-      setup_loader <- self$setup_loader_mse
-    }
+    } 
     
     self$df_list <- df_list
     
@@ -55,7 +55,7 @@ get_luz_dataset <- dataset(
       }))
   },
   
-  setup_loader_mse = function(df_list){
+  setup_loader_specialcase = function(df_list){
     df_list <- unlist(df_list, recursive = F)
     
     lapply(df_list, function(y){
@@ -70,14 +70,16 @@ get_luz_dataset <- dataset(
         function(index) torch_tensor(y[index, ,drop = F])
       })
   },
+  
   getbatch_normal = function(index){
     indexes <- lapply(self$data,
                       function(x) lapply(x, function(y) y(index)))
     if(is.null(self$target)) return(list(indexes))
     target <- self$target[index]
-    list(indexes, target)},
+    list(indexes, target)
+    },
   
-  getbatch_mse = function(index){
+  getbatch_specialcase = function(index){
     
     indexes <- lapply(self$data, function(y) y(index))
     
