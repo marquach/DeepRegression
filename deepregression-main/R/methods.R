@@ -446,6 +446,7 @@ print.deepregression <- function(
     model_summary <- x$model()$modules[subnetworks_index]
     names(model_summary) <- names(x$init_params$additive_predictors)[amount_params]
     print(model_summary)
+    
   } else print(x$model))
   fae <- x$init_params$list_of_formulas
   cat("Model formulas:\n---------------\n")
