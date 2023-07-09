@@ -141,7 +141,6 @@ deepregression <- function(
   # do the same as above for torch or encapsle it in function
   
   if(engine == "torch"){
-    check_input_torch(orthog_options)
     subnetwork_builder <- subnetwork_init_torch
     model_builder <- torch_dr
   }
