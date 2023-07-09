@@ -1,4 +1,4 @@
-prepare_data_torch <- function(pfc, input_x, target = NULL, object = NULL){
+prepare_data_torch <- function(pfc, input_x, target = NULL, object){
   
   distr_datasets_length <- sapply(
     1:length(pfc),
@@ -15,17 +15,22 @@ prepare_data_torch <- function(pfc, input_x, target = NULL, object = NULL){
   
   df_list <- lapply(distr_datasets_index, function(x){ input_x[x] })
   
-  if(!is.null(object)){
-    if(sum(names(object$model()$modules) == "subnetwork") == 1){
-    df_list <- df_list[1]}
+  # special case
+  if(!attr(make_torch_dist(object$init_params$family), "nrparams_dist") == 1){
+    if(sum(names(object$model()$modules) == "subnetwork") == 1){ 
+      # if is also triggered when binomal or poisson (distribution with one parameter)
+      # only be triggered if we have multiple parameters and just want to model one
+      helper_df_list <- unlist(lapply( strsplit(names(object$model()$modules), split = "_"), 
+                     function(x) tail(x, 1)))
+      amount_params <- seq_len(length(object$init_params$parsed_formulas_contents))
+      df_list_index <- which(amount_params %in% helper_df_list)
+      df_list <- df_list[df_list_index]}
   }
   
-  if(attr(make_torch_dist(object$init_params$family), "nrparams_dist") == 1){
-    df_list <- c(df_list, df_list)
-    }
   if(is.null(target)) return(df_list)
   
-  get_luz_dataset(df_list = df_list, target = torch_tensor(target)$to(torch_float()))
+  get_luz_dataset(df_list = df_list, target = torch_tensor(target)$to(torch_float()),
+                  object = object)
   }
 
 prepare_input_list_model <- function(input_x, input_y,
