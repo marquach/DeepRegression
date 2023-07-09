@@ -46,7 +46,6 @@ test_that("Use multiple optimizers torch", {
   
   ### now in deepregression
   
-  options(orthogonalize = F)
   net <- nn_module(
     "Net",
     initialize = function() {

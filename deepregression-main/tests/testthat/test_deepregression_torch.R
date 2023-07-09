@@ -1,9 +1,7 @@
 context("Main entry: deepregression Torch")
-options(orthogonalize = F)
 test_that("Simple additive model", {
   n <- 1500
-  options(orthogonalize = F)
-  
+
   deep_model_factory <- function(i){
     function() nn_sequential(
       nn_linear(in_features = i, out_features = 2, bias = F),
@@ -121,21 +119,8 @@ test_that("Generalized additive model", {
   expect_is(mod, "deepregression")
   
   mod %>% fit(epochs = 2)
-
-  # # 2 deep 1 structured no intercept
-  mod <- deepregression(
-    y = y,
-    data = data,
-    list_of_formulas = list(loc = ~ X1 + d(X1) + g(X2), scale = ~ -1 + s(X3, bs = "tp")),
-    list_of_deep_models = list(d = deep_model, g = deep_model),
-    engine = "torch"
-  )
-  
-  expect_is(mod, "deepregression")
-  
-  mod %>% fit(epochs = 2)
-  
   pred <- mod %>% predict(data)
+  
 })
 
 

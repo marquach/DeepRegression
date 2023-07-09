@@ -1,8 +1,7 @@
 context("deepregression methods Torch")
 
 test_that("all methods", {
-  options(orthogonalize = F)
-  
+
   n <- 1500
   deep_model <- function()  nn_sequential(
     nn_linear(in_features = 1, out_features = 2, bias = F),
