@@ -1,7 +1,6 @@
 library(rbenchmark)
 library(ggplot2)
 devtools::load_all("deepregression-main/")
-orthog_options = orthog_control(orthogonalize = F)
 
 plain_loop_fit_function <- function(model, epochs, batch_size, data_x, data_y,
                                     validation_split, verbose = F, shuffle = T){
