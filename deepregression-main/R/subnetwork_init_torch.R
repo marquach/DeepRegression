@@ -73,5 +73,8 @@ subnetwork_init_torch <- function(pp, deep_top = NULL,
                              function(i) pp_lay[[i]]$term), param_nr, sep = "_")
     outputs
     model_torch(outputs)
+  } else{
+    
+    stop("Orthogonalization not implemented for torch")
   }
 }
