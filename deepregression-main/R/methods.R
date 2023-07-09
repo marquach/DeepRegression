@@ -198,7 +198,7 @@ predict.deepregression <- function(
       if(object$engine == "torch") {
         input_model <- 
           prepare_data_torch(object$init_params$parsed_formulas_contents,
-                             input_x = input_model)
+                             input_x = input_model, object = object)
         object$model <- object$model()
         object$model$eval()
       }
@@ -217,7 +217,7 @@ predict.deepregression <- function(
       if(object$engine == "torch") {
         newdata_processed <- 
           prepare_data_torch(object$init_params$parsed_formulas_contents,
-                             input_x = newdata_processed)
+                             input_x = newdata_processed, object = object)
         object$model <- object$model()
         object$model$eval()
       }
@@ -290,7 +290,6 @@ fit.deepregression <- function(
   validation_split = ifelse(is.null(validation_data), 0.1, 0),
   callbacks = list(),
   convertfun = function(x) tf$constant(x, dtype="float32"),
-  return_inputs_model = F,
   ...
 )
 {
@@ -327,26 +326,16 @@ fit.deepregression <- function(
   input_y <- as.matrix(object$init_params$y)
   
   if(!is.null(validation_data)){
-    if(object$engine == "tf"){
+    
       validation_data <- 
         list(
           x = prepare_newdata(object$init_params$parsed_formulas_content, 
-                              validation_data[[1]], 
-                              gamdata = object$init_params$gamdata$data_trafos),
-          y = object$init_params$prepare_y_valdata(validation_data[[2]])
-    )
-    }
-    if(object$engine == "torch"){
-      validation_data <- 
-        list(
-          x = prepare_newdata(object$init_params$parsed_formulas_content, 
-                              validation_data[[1]], 
+                              newdata = validation_data[[1]], 
                               gamdata = object$init_params$gamdata$data_trafos,
                               engine = object$engine),
           y = object$init_params$prepare_y_valdata(validation_data[[2]])
         )
       }
-    }
 
   if(length(object$init_params$image_var)>0 & object$engine == "tf"){
     
@@ -381,7 +370,6 @@ fit.deepregression <- function(
     args <- append(args,
                    input_list_model[!names(input_list_model) %in%
                                       names(args)])
-    if(return_inputs_model & object$engine == "torch") return(args)
 
   ret <- suppressWarnings(do.call(object$fit_fun, args))
   if(save_weights) ret$weighthistory <- weighthistory$weights_last_layer
@@ -452,12 +440,12 @@ print.deepregression <- function(
 {
   suppressWarnings(
     if(grepl("luz", attr(x$model, "class"))){
-      subnetworks_index <- which(lapply(strsplit(names(x$model()$modules), "[.]"),
-                                        function(x) x[length(x)]) == "subnetwork")
-      amount_params <- seq_len(length(subnetworks_index))
-      model_summary <- x$model()$modules[subnetworks_index]
-      names(model_summary) <- names(x$init_params$additive_predictors)[amount_params]
-      print(model_summary)
+    subnetworks_index <- which(lapply(strsplit(names(x$model()$modules), "[.]"),
+                   function(x) x[length(x)]) == "subnetwork")
+    amount_params <- seq_len(length(subnetworks_index))
+    model_summary <- x$model()$modules[subnetworks_index]
+    names(model_summary) <- names(x$init_params$additive_predictors)[amount_params]
+    print(model_summary)
   } else print(x$model))
   fae <- x$init_params$list_of_formulas
   cat("Model formulas:\n---------------\n")
@@ -536,21 +524,14 @@ cv.deepregression <- function(
     if(print_folds) cat("Fitting Fold ", folds_iter, " ... ")
     st1 <- Sys.time()
 
-    # does not work?
-    # this_mod <- clone_model(x$model)
-    
     this_mod <- x
-    this_mod_test <- x$model 
-    
 
     train_ind <- this_fold[[1]]
     test_ind <- this_fold[[2]]
     
-    # has to be adapted torch
     x_train <- prepare_data(pfc = x$init_params$parsed_formulas_content,
                             gamdata = x$init_params$gamdata$data_trafos,
                             engine = x$engine)
-    
     
     train_data <- lapply(x_train, function(x)
         subset_array(x, train_ind))
@@ -558,8 +539,6 @@ cv.deepregression <- function(
         subset_array(x, test_ind))
     
     
-    # make callbacks
-    # callbacks specific to luz
     this_callbacks <- callbacks
     if(save_weights){
       weighthistory <- WeightHistory$new()
@@ -734,7 +713,7 @@ get_distribution <- function(
     if(x$engine == "torch"){
       model_input <- 
           prepare_data_torch(x$init_params$parsed_formulas_contents,
-                             input_x = model_input)
+                             input_x = model_input, object = x)
         x$model <- x$model()
     }
     disthat <- x$model(model_input)
@@ -748,7 +727,7 @@ get_distribution <- function(
     if(x$engine == "torch"){
       newdata_processed <- 
         prepare_data_torch(x$init_params$parsed_formulas_contents,
-                           input_x = newdata_processed)
+                           input_x = newdata_processed, object = x)
       x$model <- x$model()
     }
     disthat <- x$model(newdata_processed)
@@ -796,7 +775,7 @@ log_score <- function(
                               engine = x$engine)
     if(x$engine == "torch"){
       this_data <- prepare_data_torch(pfc = x$init_params$parsed_formulas_content,
-                         input_x = this_data)
+                         input_x = this_data, object = x)
       x$model <- x$model()
     }
   
@@ -811,7 +790,7 @@ log_score <- function(
     
     if(x$engine == "torch"){
       this_data <- prepare_data_torch(pfc = x$init_params$parsed_formulas_content,
-                                      input_x = this_data)
+                                      input_x = this_data, object = x)
       x$model <- x$model()
       x$model$eval()
     }

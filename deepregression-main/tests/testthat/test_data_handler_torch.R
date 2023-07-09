@@ -71,7 +71,13 @@ test_that("properties of dataset torch", {
   data <- c(
     list(list(loc_intercept, loc_x)),
     list(list(scale_intercept)))
-  luz_dataset <- get_luz_dataset(df_list = data)
+  
+  mod <- deepregression(y = target, list_of_formulas = 
+                   list(loc = ~ 1 + x,
+                        scale = ~ 1), data = data.frame("x" = loc_x),
+                 engine = "torch")
+  
+  luz_dataset <- get_luz_dataset(df_list = data, object = mod)
   
   expect_true("deepregression_luz_dataset" %in% class(luz_dataset))
   
@@ -82,9 +88,10 @@ test_that("properties of dataset torch", {
     luz_dataset$.length() == n
   )
   
-  luz_dataset <- get_luz_dataset(df_list = data, target = target)
+  luz_dataset <- get_luz_dataset(df_list = data, target = target, object = mod)
   # two parameters
-  expect_equal(length(luz_dataset$.getbatch(1)[[1]]), length(data)[[1]] )
+  expect_equal(length(luz_dataset$.getbatch(1)[[1]]), attr(
+    make_torch_dist(mod$init_params$family), "nrparams_dist"))
   
   expect_true(
     luz_dataset$.length() == n
@@ -96,7 +103,6 @@ test_that("properties of dataset torch", {
     ncol(luz_dataset$target) == 1
   )
   
-  luz_dataset$.getbatch(1)
 
 })
 

@@ -3,8 +3,7 @@ library(gamlss)
 devtools::load_all("deepregression-main/")
 
 test_that("Poisson Distributins works", {
-    orthog_options = orthog_control(orthogonalize = F)
-    
+
     set.seed(42)
     n <- 1000
     x <- sample(x = log(85:125), size = n, replace = T)
@@ -17,8 +16,7 @@ test_that("Poisson Distributins works", {
                                           list_of_formulas = list( rate = ~1 + x),
                                        data = data_poisson,
                                        family = "poisson",
-                                       engine = "torch",
-                                       orthog_options = orthog_options)
+                                       engine = "torch")
     
     expect_true(model_poisson_torch$init_params$family == "poisson")
     expect_equal(length(model_poisson_torch$model()[[1]]), 1)
@@ -49,10 +47,9 @@ test_that("Gamma (no natural link) Distributins works", {
   # alpha = shape (concentration)
   gamlss_gamma <- gamlss(formula = y ~ 1 + x, sigma.formula = y~1, 
                        family = "GA", data = data_gamma)
-  -coef(gamlss_gamma)
   glm_gamma <- glm(formula = y~x, 
                  data = data_gamma, family = Gamma(link = "log"))
-  -coef(glm_gamma)
+  
 
 
   model_gamma_torch <- deepregression(y = y,
@@ -61,8 +58,7 @@ test_that("Gamma (no natural link) Distributins works", {
                                       rate = ~ 1+ x),
                                     data = data_gamma,
                                     family = "gamma",
-                                    engine = "torch",
-                                    orthog_options = orthog_options)
+                                    engine = "torch")
   model_gamma_torch %>% fit(epochs = 1000, validation_split = 0)
   
   res_gamma <- list(
@@ -80,7 +76,7 @@ test_that("Gamma (no natural link) Distributins works", {
 })
 
 
-test_that("Bernoulli Distributins works", {
+test_that("Bernoulli Distributions works", {
 
   set.seed(42)
   n <- 1000
@@ -94,10 +90,7 @@ test_that("Bernoulli Distributins works", {
                                           logit = ~ 1 + x),
                                         data = data_bern,
                                         family = "bernoulli",
-                                        engine = "torch",
-                                        orthog_options = orthog_options,
-                                        subnetwork_builder = subnetwork_init_torch,
-                                        model_builder = torch_dr)
+                                        engine = "torch")
   model_bernoulli_torch %>% fit(epochs = 250, validation_split = 0)
   model_bernoulli_torch %>% coef()
   
