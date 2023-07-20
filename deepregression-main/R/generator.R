@@ -255,12 +255,12 @@ predict_gen <- function(
   if(object$engine == "torch"){
     newdata_processed <-  prepare_data_torch(
       pfc  = object$init_params$parsed_formulas_content,
-      input_x = newdata_processed)
+      input_x = newdata_processed, object = object)
     
     cat(sprintf("Found %s validated image filenames \n", max_data))
     
     predict_ds <- get_luz_dataset(df_list = newdata_processed,
-                                  length = max_data)
+                                  length = max_data, object = object)
     predict_dl <- predict_ds %>% dataloader(batch_size = batch_size)
     
     iter <- predict_dl$.iter()

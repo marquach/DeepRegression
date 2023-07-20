@@ -1,10 +1,7 @@
 # Case Study Airbnb
 # https://arxiv.org/pdf/2104.02705.pdf#page=30&zoom=100,72,725
-library(torch)
-library(luz)
-library(torchvision)
 devtools::load_all("deepregression-main/")
-source('scripts/deepregression_functions.R')
+#source('scripts/deepregression_functions.R')
 
 orthog_options = orthog_control(orthogonalize = F)
 
@@ -57,8 +54,8 @@ mod_torch <- deepregression(y = y, data = airbnb,
                          engine = "torch"
                          )
 
-mod_tf %>% fit(epochs = 25, validation_split = 0.2, verbose = T)
-mod_torch %>% fit(epochs = 10, validation_split = 0.2)
+mod_tf %>% fit(epochs = 100, validation_split = 0.2, verbose = T)
+mod_torch %>% fit(epochs = 100, validation_split = 0.2)
 
 fitted_vals_tf <- mod_tf %>% fitted()
 fitted_vals_torch <- mod_torch %>% fitted()
@@ -187,8 +184,8 @@ shared_dnn_torch <- deepregression(
   data = airbnb_texts_torch
 )
 
-shared_dnn_tf %>% fit(epochs = 10, validation_split = 0.1)
-shared_dnn_torch %>% fit(epochs = 10, validation_split = 0.1)
+shared_dnn_tf %>% fit(epochs = 100, validation_split = 0.1)
+shared_dnn_torch %>% fit(epochs = 100, validation_split = 0.1)
 
 plot(shared_dnn_tf %>% fitted(),
      shared_dnn_torch %>% fitted()
@@ -303,11 +300,11 @@ mod_cnn_torch <- deepregression(
 
 
 mod_cnn_tf %>% fit(
-   epochs = 2, batch_size = 56,
+   epochs = 15, batch_size = 56,
    early_stopping = F)
 
 mod_cnn_torch %>% fit(
-  epochs = 2, batch_size = 56,
+  epochs = 15, batch_size = 56,
   early_stopping = F)
 
 

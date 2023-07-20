@@ -10,15 +10,16 @@ model_torch <-  function(submodules_list){
   nn_module(
     classname = "torch_model",
     initialize = function() {
-      self$subnetwork <- nn_module_list(submodules_list)
-      names(self$subnetwork$.__enclos_env__$private$modules_) <- 
-        names(submodules_list)
+      self$help_forward <- get_help_forward_torch(submodules_list)
+      self$subnetwork <- nn_module_dict(submodules_list)
       
     },
     
     forward = function(dataset_list) {
-      subnetworks <- lapply(1:length(self$subnetwork), function(x){
-        self$subnetwork[[x]](dataset_list[[x]])
+      subnetworks <- lapply(seq_len(length(self$help_forward)),
+                            function(x){
+                              used_layer <- self$help_forward[[x]]
+                              self$subnetwork[[used_layer]](dataset_list[[x]])
       })
       
       Reduce(f = torch_add, subnetworks)
@@ -50,7 +51,7 @@ model_torch <-  function(submodules_list){
 torch_dr <- function(
     list_pred_param,
     optimizer = torch::optim_adam,
-    model_fun = NULL, #nicht mehr nötig bei Torch?
+    model_fun = NULL, 
     monitor_metrics = list(),
     from_preds_to_output = from_preds_to_dist_torch,
     loss = from_dist_to_loss_torch(family = list(...)$family,
@@ -64,7 +65,7 @@ torch_dr <- function(
   model <- out
   
   # compile model
-  model <- model %>% luz::setup(optimizer = optimizer,
+  model <- out %>% luz::setup(optimizer = optimizer,
                                 loss = loss,
                                 metrics = monitor_metrics)
   return(model)
@@ -200,10 +201,8 @@ from_preds_to_dist_torch <- function(
     names(list_pred_param) <- names_families(family)
   }
 
-  preds <- lapply(list_pred_param, model_torch)
-  
   # generate output
-  out <- from_distfun_to_dist_torch(dist_fun, preds)
+  out <- from_distfun_to_dist_torch(dist_fun, list_pred_param)
   
 }
 
@@ -219,24 +218,25 @@ from_distfun_to_dist_torch <- function(dist_fun, preds){
     
     initialize = function() {
       
-      self$distr_parameters <- nn_module_list(
+      self$distr_parameters <- nn_module_dict(
         lapply(preds, function(x) x()))
-      names(self$distr_parameters$.__enclos_env__$private$modules_) <- 
-        names(preds)
+      self$amount_distr_parameters <- length(preds)
+      #names(self$distr_parameters$.__enclos_env__$private$modules_) <- 
+      #  names(preds)
     },
     
     forward = function(dataset_list) {
-      distribution_parameters <- lapply(
-        1:length(self[[1]]), function(x){
-          self[[1]][[x]](dataset_list[[x]])
+      distribution_parameters <- lapply(seq_len(self$amount_distr_parameters),
+                                        function(x){
+                                          self[[1]][[x]](dataset_list[[x]])
         })
       
       if(any(names(self[[1]]$.__enclos_env__$private$modules_) == "both")){
         distribution_parameters <- torch_sum(
           torch_stack(
             list(
-              torch_cat(distribution_parameters[-length(self[[1]])], dim = 2),
-              distribution_parameters[[length(self[[1]])]])
+              torch_cat(distribution_parameters[-length(dataset_list)], dim = 2),
+              distribution_parameters[[length(dataset_list)]])
           ), dim = 1)
         
         distribution_parameters <- 
