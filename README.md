@@ -18,20 +18,10 @@ The thesis will demonstrate the efficacy of this framework and compare it to exi
 
 # Stucture
 
-`scripts` contains all of the scripts, which were created in the process of the masterthesis.
-
-`scripts\Comprehension_scripts` contains the scripts that were used to get in touch with: 
-
- 
- `scripts\milestones_presentation` lorem ipsum
-
-
-`scripts\deepregression_functions.R` contains the $\texttt{tensorflow} \Rightarrow \texttt{torch}$  *translated* deepregression functions, which were needed to get the proof-of-concept work. 
-Most of these functions were named like the ones from the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package, but a `_torch` was added to the name.
+`scripts` contained all of the scripts, which were created in the process of the masterthesis. They are were moved to `deepregression-main/R`
+ - `scripts\deepregression_functions.R` contains the $\texttt{tensorflow} \Rightarrow \texttt{torch}$  *translated* deepregression functions, which were needed to get the proof-of-concept work.  Most of these functions were named like the ones from the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package, but a `_torch` was added to the name.
 
 Also some showcases (`showcases`) and tests (`tests`) were included to check whether the implementation works.
-
-An intercept-only, a linear model, an additive model, a structured model (combination of all mentioned before), a deep model and a semi-structured model were used as examples. 
 
 # Outlook:
 
