@@ -15,6 +15,8 @@ By combining additive models and neural networks, it becomes possible to expand 
 
 The thesis will demonstrate the efficacy of this framework and compare it to existing software implementation deepregression through numerical experiments, while also highlighting its special merits in a real-world application on the airbnb dataset. 
 
+The goal was to include them in the [deepregression](https://github.com/neural-structured-additive-learning/deepregression) package, thereby enabling seamless model building and training with Torch.
+
 
 # Stucture
 
