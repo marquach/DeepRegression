@@ -34,7 +34,7 @@ An intercept-only, a linear model, an additive model, a structured model (combin
 
 # Outlook:
 
-# Installation (does not work because private)
+# Installation
 
 To install the package, use the following command:
 ``` r
