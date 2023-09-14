@@ -1,6 +1,6 @@
 
 # deepregression Torch (Masterthesis)
-## Content (will adapted next week, just to put some stuff inside)
+## Content
 
 By combining additive models and neural networks, it becomes possible to expand the scope of statistical regression and extend deep learning-based approaches using interpretable structured additive predictors. The content of this thesis is the implementation of semi-structured regression, a general framework that allows the combination of many different structured additive models and deep neural networks, using the R-native deep learning language torch. Using existing functionalities in the TensorFlow-based software R package deepregression as a blueprint, this thesis will implement torch-based alternatives to existing functions that, e.g., allow to 
 
